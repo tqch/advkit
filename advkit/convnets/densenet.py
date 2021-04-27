@@ -49,7 +49,13 @@ default_configs = {
 
 class DenseBlock(nn.Module):
 
-    def __init__(self, in_chans, growth_rate, n_layers, bottleneck=False):
+    def __init__(
+            self,
+            in_chans,
+            growth_rate,
+            n_layers,
+            bottleneck=False
+    ):
         """
         Densely-connected Block
         :param in_chans: number of input feature maps
@@ -66,10 +72,15 @@ class DenseBlock(nn.Module):
 
         for i in range(1, n_layers + 1):
             if i == 1:
-                self.add_module(f"{self.layer_type}_layer_{i}", self._get_layer(self.in_chans))
+                self.add_module(
+                    f"{self.layer_type}_layer_{i}",
+                    self._get_layer(self.in_chans)
+                )
             else:
-                self.add_module(f"{self.layer_type}_layer_{i}",
-                                self._get_layer(self.in_chans + (i - 1) * self.growth_rate))
+                self.add_module(
+                    f"{self.layer_type}_layer_{i}",
+                    self._get_layer(self.in_chans + (i - 1) * self.growth_rate)
+                )
 
     def _get_layer(self, in_chans):
 
@@ -174,32 +185,26 @@ if __name__ == "__main__":
     import os
     from advkit.utils.models import *
     from advkit.utils.data import get_dataloader
-    from torchvision import transforms
     from torch.optim import SGD, lr_scheduler
 
     ROOT = os.path.expanduser("~/advkit")
     DATA_PATH = os.path.join(ROOT, "datasets")
-    TRANSFORM = transforms.Compose([
-        transforms.RandomHorizontalFlip(p=0.5),
-        transforms.RandomAffine(degrees=15, translate=(0.125, 0.125), scale=(0.875, 1.125)),
-        transforms.ToTensor()
-    ])
 
-    WEIGHTS_PATH = os.path.join(ROOT, "model_weights/cifar_densenet-bc-100-12.pt")
+    WEIGHTS_PATH = os.path.join(ROOT, "model_weights/cifar10_densenet-bc-100-12.pt")
     TRAIN = not os.path.exists(WEIGHTS_PATH)
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    test_loader = get_dataloader(dataset="cifar10", root=DATA_PATH)
+    testloader = get_dataloader(dataset="cifar10", root=DATA_PATH)
 
     if not TRAIN:
         model = DenseNet.from_default_config("densenet-bc-100-12")
-        model.load_state_dict(torch.load(WEIGHT_PATH, map_location=DEVICE))
+        model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=DEVICE))
         model.to(DEVICE)
-        evaluate(model, test_loader, device=DEVICE)
+        evaluate(model, testloader, device=DEVICE)
     else:
         set_seed(42)
-        train_loader, val_loader = get_dataloader(
-            "cifar10",
+        trainloader, valloader = get_dataloader(
+            dataset="cifar10",
             root=DATA_PATH,
             train=True,
             val_size=0.1,
@@ -212,10 +217,18 @@ if __name__ == "__main__":
         loss_fn = nn.CrossEntropyLoss()
         optimizer = SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4, nesterov=True)
         scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
-        best_epoch, best_val_acc = train(model, epochs, train_loader, loss_fn, optimizer, scheduler, val_loader, DEVICE)
-
+        best_epoch, best_val_acc = train(
+            model,
+            epochs,
+            trainloader,
+            loss_fn,
+            optimizer,
+            scheduler,
+            valloader,
+            DEVICE
+        )
         set_seed(42)
-        train_loader = get_dataloader(
+        trainloader = get_dataloader(
             dataset="cifar10",
             root=DATA_PATH,
             train=True,
@@ -226,7 +239,17 @@ if __name__ == "__main__":
         model.to(DEVICE)
         loss_fn = nn.CrossEntropyLoss()
         optimizer = SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4, nesterov=True)
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
-        train(model, best_epoch, train_loader, loss_fn, optimizer, scheduler, test_loader, DEVICE)
-
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
+        train(
+            model,
+            best_epoch,
+            trainloader,
+            loss_fn,
+            optimizer,
+            scheduler,
+            testloader,
+            DEVICE
+        )
+        if not os.path.exists(os.path.dirname(WEIGHTS_PATH)):
+            os.makedirs(os.path.dirname(WEIGHTS_PATH))
         torch.save(model.state_dict(), WEIGHTS_PATH)

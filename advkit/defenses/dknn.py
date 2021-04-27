@@ -128,7 +128,15 @@ class DkNN(DkNNBase):
             device=torch.device("cpu")
     ):
 
-        super(DkNN, self).__init__(model, train_data, train_targets, n_class, hidden_layers, n_neighbors, device)
+        super(DkNN, self).__init__(
+            model,
+            train_data,
+            train_targets,
+            n_class,
+            hidden_layers,
+            n_neighbors,
+            device
+        )
         self._calib_alphas = self._calc_alpha(calibration=True)
 
     @staticmethod
@@ -184,13 +192,13 @@ class DkNN(DkNNBase):
 
 if __name__ == "__main__":
     import os
-    from attacks.pgd import PGD
-    from utils.data import get_dataloader
-    from convnets.vgg import VGG
+    from advkit.attacks.pgd import PGD
+    from advkit.utils.data import get_dataloader
+    from advkit.convnets.vgg import VGG
     from torchvision.datasets import CIFAR10
 
     ROOT = "../datasets"
-    MODEL_WEIGHTS = "../model_weights/cifar_vgg16.pt"
+    MODEL_WEIGHTS = "../model_weights/cifar10_vgg16.pt"
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     DOWNLOAD = not os.path.exists("../datasets/cifar-10-python.tar.gz")
 
@@ -200,7 +208,7 @@ if __name__ == "__main__":
         torch.LongTensor(trainset.targets)[:2000]
     )  # for memory's sake, only take 2000 as train set
 
-    test_loader = get_dataloader(dataset="cifar10", root=ROOT, test_batch_size=128)
+    testloader = get_dataloader(dataset="cifar10", root=ROOT, test_batch_size=128)
 
     model = VGG.from_default_config("vgg16")
     model.load_state_dict(torch.load(MODEL_WEIGHTS, map_location=DEVICE))
@@ -209,7 +217,7 @@ if __name__ == "__main__":
     dknn = DkNN(model, train_data, train_targets, device=DEVICE)
 
     pgd = PGD(eps=8 / 255., step_size=2 / 255., batch_size=128)
-    x, y = next(iter(test_loader))
+    x, y = next(iter(testloader))
     x_adv = pgd.generate(model, x, y, device=DEVICE)
 
     pred_benign, _, _ = dknn(x.to(DEVICE))

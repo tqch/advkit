@@ -10,9 +10,12 @@
 ## Attacks
 
 - **PGD:** Towards Deep Learning Models Resistant to Adversarial Attacks [[Madry et al., 2017]](https://arxiv.org/abs/1706.06083)
+- **DkNN Attack:** On the Robustness of Deep K-Nearest Neighbors [[Sitawarin and Wagner, 2019]](https://arxiv.org/abs/1903.08333)
+- **(To be added soon) Adv-kNN:** Adversarial Attacks On K-Nearest Neighbor Classifiers With Approximate Gradients [[Li et al., 2019]](https://arxiv.org/abs/1911.06591) 
 
 ## Defenses
 
+- **Adversarial training:** Towards Deep Learning Models Resistant to Adversarial Attacks [[Madry et al., 2017]](https://arxiv.org/abs/1706.06083)
 - **DkNN:** Deep k-Nearest Neighbors: Towards Confident, Interpretable and Robust Deep Learning [[Papernot et al., 2018]](https://arxiv.org/abs/1803.04765)
 
   

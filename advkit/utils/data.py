@@ -35,7 +35,9 @@ DATASET_CONFIGS = {
     }
 }
 
-ROOT = os.path.expanduser("~/advkit/datasets")
+ROOT = os.path.expanduser("~/advkit")
+DATA_PATH = os.path.join(ROOT, "datasets")
+WEIGHTS_FOLDER = os.path.join(ROOT, "model_weights")
 
 
 class PyTorchDataset(Dataset):
@@ -54,7 +56,7 @@ class PyTorchDataset(Dataset):
 
 def get_dataloader(
         dataset,
-        root=ROOT,
+        root=DATA_PATH,
         download=None,
         train=False,
         transform_train=None,
