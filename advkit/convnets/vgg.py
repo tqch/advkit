@@ -70,23 +70,24 @@ class VGG(nn.Module):
 if __name__ == "__main__":
 
     import os
-    from utils.models import *
-    from utils.data import get_dataloader
+    from advkit.utils.models import *
+    from advkit.utils.data import get_dataloader
     from torchvision import transforms
     from torch.optim import SGD, lr_scheduler
 
-    ROOT = "../datasets"
+    ROOT = os.path.expanduser("~/advkit")
+    DATA_PATH = os.path.join(ROOT, "datasets")
     TRANSFORM = transforms.Compose([
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.RandomAffine(degrees=15, translate=(0.125, 0.125), scale=(0.875, 1.125)),
         transforms.ToTensor()
     ])
 
-    WEIGHT_PATH = "../model_weights/cifar_vgg16.pt"
+    WEIGHT_PATH = os.path.join(ROOT, "model_weights/cifar_vgg16.pt")
     TRAIN = not os.path.exists(WEIGHT_PATH)
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    test_loader = get_dataloader(dataset="cifar10", root=ROOT)
+    test_loader = get_dataloader(dataset="cifar10", root=DATA_PATH)
 
     if not TRAIN:
         model = VGG.from_default_config("vgg16")
@@ -95,26 +96,37 @@ if __name__ == "__main__":
         evaluate(model, test_loader, device=DEVICE)
     else:
         set_seed(42)
-        train_loader, val_loader = get_dataloader("cifar10", root="../datasets", train=True, transform=TRANSFORM,
-                                                  val_size=0.1)
+        train_loader, val_loader = get_dataloader(
+            "cifar10",
+            root=DATA_PATH,
+            train=True,
+            val_size=0.1,
+            train_batch_size=64
+        )
         set_seed(42)
         model = VGG.from_default_config("vgg16")
         model.to(DEVICE)
-        epochs = 90
+        epochs = 100
         loss_fn = nn.CrossEntropyLoss()
         optimizer = SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=5e-4)
-        scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", factor=0.1, patience=5)
+        # scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", factor=0.1, patience=5)
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
         best_epoch, best_val_acc = train(model, epochs, train_loader,
                                          loss_fn, optimizer, scheduler, val_loader, DEVICE)
 
         set_seed(42)
-        train_loader = get_dataloader(dataset="cifar10", root=ROOT, train=True, transform=TRANSFORM)
+        train_loader = get_dataloader(
+            dataset=DATA_PATH,
+            root=os.path.join(ROOT, "datasets"),
+            train=True,
+            train_batch_size=64
+        )
         set_seed(42)
         model = VGG.from_default_config("vgg16")
         model.to(DEVICE)
         loss_fn = nn.CrossEntropyLoss()
-        optimizer = SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=5e-4)
-        scheduler = None
+        optimizer = SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4, nesterov=True)
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
         train(model, best_epoch, train_loader, loss_fn, optimizer, scheduler, test_loader, DEVICE)
 
-        torch.save(model.state_dict(), "../model_weights/cifar_vgg16.pt")
+        torch.save(model.state_dict(), WEIGHT_PATH)

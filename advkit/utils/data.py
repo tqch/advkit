@@ -35,6 +35,8 @@ DATASET_CONFIGS = {
     }
 }
 
+ROOT = os.path.expanduser("~/advkit/datasets")
+
 
 class PyTorchDataset(Dataset):
 
@@ -52,7 +54,7 @@ class PyTorchDataset(Dataset):
 
 def get_dataloader(
         dataset,
-        root="../datasets",
+        root=ROOT,
         download=None,
         train=False,
         transform_train=None,
@@ -68,11 +70,13 @@ def get_dataloader(
     data_folder = configs["data_folder"]
     importer = configs["importer"]
     train_batch_size = train_batch_size or configs["batch_size"]
+    if not os.path.exists(root):
+        os.makedirs(root)
     if download is None:
         download = not os.path.exists(os.path.join(root, data_folder))
     if not train:
         if transform_test is None:
-            transform_test = configs["transform_test"] if not augmentation else transforms.ToTensor()
+            transform_test = configs["transform_test"] if augmentation else transforms.ToTensor()
         dataset = importer(
             root=root,
             train=False,
@@ -82,9 +86,9 @@ def get_dataloader(
         return DataLoader(dataset, batch_size=test_batch_size, shuffle=False)
     else:
         if transform_train is None:
-            transform_train = configs["transform_train"] if not augmentation else transforms.ToTensor()
+            transform_train = configs["transform_train"] if augmentation else transforms.ToTensor()
         if transform_test is None:
-            transform_test = configs["transform_test"] if not augmentation else transforms.ToTensor()
+            transform_test = configs["transform_test"] if augmentation else transforms.ToTensor()
         if val_size is None:
             dataset = importer(
                 root=root,

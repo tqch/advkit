@@ -229,23 +229,24 @@ class ResNet(nn.Module):
 
 if __name__ == "__main__":
     import os
-    from utils.models import *
-    from utils.data import get_dataloader
+    from advkit.utils.models import *
+    from advkit.utils.data import get_dataloader
     from torchvision import transforms
     from torch.optim import SGD,lr_scheduler
 
-    ROOT = "../datasets"
+    ROOT = os.path.expanduser("~/advkit")
+    DATA_PATH = os.path.join(ROOT, "datasets")
     TRANSFORM = transforms.Compose([
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.RandomAffine(degrees=15, translate=(0.125, 0.125), scale=(0.875, 1.125)),
         transforms.ToTensor()
     ])
 
-    WEIGHT_PATH = "../model_weights/cifar_resnet56.pt"
+    WEIGHT_PATH = os.path.join(ROOT, "model_weights/cifar_resnet56.pt")
     TRAIN = not os.path.exists(WEIGHT_PATH)
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    test_loader = get_dataloader(dataset="cifar10", root=ROOT)
+    test_loader = get_dataloader(dataset="cifar10", root=DATA_PATH)
 
     if not TRAIN:
         model = ResNet.from_default_config("resnet56")
@@ -256,23 +257,30 @@ if __name__ == "__main__":
         set_seed(42)
         train_loader, val_loader = get_dataloader(
             "cifar10",
-            root="../datasets",
+            root=DATA_PATH,
             train=True,
             transform=TRANSFORM,
-            val_size=0.1
+            val_size=0.1,
+            train_batch_size=64
         )
         set_seed(42)
         model = ResNet.from_default_config("resnet56")
         model.to(DEVICE)
-        epochs = 90
+        epochs = 100
         loss_fn = nn.CrossEntropyLoss()
-        optimizer = SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4)
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+        optimizer = SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4, nesterov=True)
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
         best_epoch, best_val_acc = train(model, epochs, train_loader,
                                          loss_fn, optimizer, scheduler, val_loader, DEVICE)
 
         set_seed(42)
-        train_loader = get_dataloader(dataset="cifar10", root=ROOT, train=True, transform=TRANSFORM)
+        train_loader = get_dataloader(
+            dataset="cifar10",
+            root=DATA_PATH,
+            train=True,
+            transform=TRANSFORM,
+            train_batch_size=64
+        )
         set_seed(42)
         model = ResNet.from_default_config("resnet56")
         model.to(DEVICE)
@@ -281,4 +289,4 @@ if __name__ == "__main__":
         scheduler = lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
         train(model, best_epoch, train_loader, loss_fn, optimizer, scheduler, test_loader, DEVICE)
 
-        torch.save(model.state_dict(), "../model_weights/cifar_resnet56.pt")
+        torch.save(model.state_dict(), WEIGHT_PATH)
