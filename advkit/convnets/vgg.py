@@ -20,16 +20,17 @@ class VGG(nn.Module):
         self.block5 = self._get_basic_block(512, 512, self.conv_layers_config[4])
 
         post_conv_shape = self.input_shape[1] // 2 ** 5, self.input_shape[2] // 2 ** 5
+        intermediate_dimension = 1024 if post_conv_shape == 1 else 4096
 
         self.final_block = nn.Sequential(
             nn.Flatten(start_dim=1),
-            nn.Linear(post_conv_shape[0] * post_conv_shape[1] * 512, 4096),
+            nn.Linear(post_conv_shape[0] * post_conv_shape[1] * 512, intermediate_dimension),
             nn.Dropout(0.5),
             nn.ReLU(),
-            nn.Linear(4096, 4096),
+            nn.Linear(intermediate_dimension, intermediate_dimension),
             nn.Dropout(0.5),
             nn.ReLU(),
-            nn.Linear(4096, self.n_class)
+            nn.Linear(intermediate_dimension, self.n_class)
         )
 
     @staticmethod
@@ -77,21 +78,21 @@ if __name__ == "__main__":
 
     ROOT = os.path.expanduser("~/advkit")
     DATA_PATH = os.path.join(ROOT, "datasets")
-    TRANSFORM = transforms.Compose([
-        transforms.RandomHorizontalFlip(p=0.5),
-        transforms.RandomAffine(degrees=15, translate=(0.125, 0.125), scale=(0.875, 1.125)),
-        transforms.ToTensor()
-    ])
+    # TRANSFORM = transforms.Compose([
+    #     transforms.RandomHorizontalFlip(p=0.5),
+    #     transforms.RandomAffine(degrees=15, translate=(0.125, 0.125), scale=(0.875, 1.125)),
+    #     transforms.ToTensor()
+    # ])
 
-    WEIGHT_PATH = os.path.join(ROOT, "model_weights/cifar_vgg16.pt")
-    TRAIN = not os.path.exists(WEIGHT_PATH)
+    WEIGHTS_PATH = os.path.join(ROOT, "model_weights/cifar_vgg16.pt")
+    TRAIN = not os.path.exists(WEIGHTS_PATH)
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     test_loader = get_dataloader(dataset="cifar10", root=DATA_PATH)
 
     if not TRAIN:
         model = VGG.from_default_config("vgg16")
-        model.load_state_dict(torch.load(WEIGHT_PATH, map_location=DEVICE))
+        model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=DEVICE))
         model.to(DEVICE)
         evaluate(model, test_loader, device=DEVICE)
     else:
@@ -111,9 +112,16 @@ if __name__ == "__main__":
         optimizer = SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=5e-4)
         # scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", factor=0.1, patience=5)
         scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
-        best_epoch, best_val_acc = train(model, epochs, train_loader,
-                                         loss_fn, optimizer, scheduler, val_loader, DEVICE)
-
+        best_epoch, best_val_acc = train(
+            model,
+            epochs,
+            train_loader,
+            loss_fn,
+            optimizer,
+            scheduler,
+            val_loader,
+            DEVICE
+        )
         set_seed(42)
         train_loader = get_dataloader(
             dataset=DATA_PATH,
@@ -129,4 +137,4 @@ if __name__ == "__main__":
         scheduler = lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
         train(model, best_epoch, train_loader, loss_fn, optimizer, scheduler, test_loader, DEVICE)
 
-        torch.save(model.state_dict(), WEIGHT_PATH)
+        torch.save(model.state_dict(), WEIGHTS_PATH)

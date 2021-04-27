@@ -78,16 +78,18 @@ class PGD:
 
 
 if __name__ == "__main__":
-    from utils.data import get_dataloader
-    from convnets.vgg import VGG16
+    from advkit.utils.data import get_dataloader
+    from advkit.convnets.vgg import VGG16
+    import os
 
-    ROOT = "../datasets"
-    MODEL_WEIGHTS = "../model_weights/cifar_vgg16.pt"
+    ROOT = os.path.expanduser("~/advkit")
+    DATA_PATH = os.path.join(ROOT, "datasets")
+    WEIGHTS_PATH = os.path.join(ROOT, "model_weights/cifar_vgg16.pt")
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    testset = get_dataloader(dataset="cifar10", root=ROOT)
+    testset = get_dataloader(dataset="cifar10", root=DATA_PATH)
     model = VGG16()
-    model.load_state_dict(torch.load(MODEL_WEIGHTS, map_location=DEVICE))
+    model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=DEVICE))
     model.eval()
     model.to(DEVICE)
 

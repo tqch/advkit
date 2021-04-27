@@ -242,7 +242,7 @@ if __name__ == "__main__":
         transforms.ToTensor()
     ])
 
-    WEIGHT_PATH = os.path.join(ROOT, "model_weights/cifar_resnet56.pt")
+    WEIGHTS_PATH = os.path.join(ROOT, "model_weights/cifar_resnet56.pt")
     TRAIN = not os.path.exists(WEIGHT_PATH)
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -250,7 +250,7 @@ if __name__ == "__main__":
 
     if not TRAIN:
         model = ResNet.from_default_config("resnet56")
-        model.load_state_dict(torch.load(WEIGHT_PATH, map_location=DEVICE))
+        model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=DEVICE))
         model.to(DEVICE)
         evaluate(model, test_loader, device=DEVICE)
     else:
@@ -289,4 +289,4 @@ if __name__ == "__main__":
         scheduler = lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
         train(model, best_epoch, train_loader, loss_fn, optimizer, scheduler, test_loader, DEVICE)
 
-        torch.save(model.state_dict(), WEIGHT_PATH)
+        torch.save(model.state_dict(), WEIGHTS_PATH)

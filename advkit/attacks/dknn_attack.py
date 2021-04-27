@@ -312,24 +312,25 @@ class DKNNAttack:
 
 if __name__ == "__main__":
     import os
-    from ..defenses.dknn import DKNN
-    from ..convnets.vgg import VGG16
+    from advkit.defenses.dknn import DKNN
+    from advkit.convnets.vgg import VGG16
     from torchvision.datasets import CIFAR10
 
-    ROOT = "../datasets"
-    MODEL_WEIGHTS = "../model_weights/cifar_vgg16.pt"
+    ROOT = os.path.expanduser("~/advkit")
+    DATA_PATH = os.path.join(ROOT, "datasets")
+    WEIGHTS_PATH = os.path.join(ROOT, "model_weights/cifar_vgg16.pt")
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    DOWNLOAD = not os.path.exists("../datasets/cifar-10-python.tar.gz")
+    DOWNLOAD = not os.path.exists(os.path.join(DATA_PATH, "cifar-10-python.tar.gz"))
 
-    trainset = CIFAR10(root=ROOT, train=True, download=DOWNLOAD)
-    testset = CIFAR10(root=ROOT, train=False, download=DOWNLOAD)
+    trainset = CIFAR10(root=DATA_PATH, train=True, download=DOWNLOAD)
+    testset = CIFAR10(root=DATA_PATH, train=False, download=DOWNLOAD)
     train_data, train_targets = (
         torch.FloatTensor(trainset.data.transpose(0, 3, 1, 2) / 255.)[:2000],
         torch.LongTensor(trainset.targets)[:2000]
     )  # for memory's sake, only take 2000 as train set
 
     model = VGG16()
-    model.load_state_dict(torch.load(MODEL_WEIGHTS, map_location=DEVICE))
+    model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=DEVICE))
     model.eval()
     model.to(DEVICE)
     dknn = DKNN(
