@@ -312,45 +312,9 @@ class DKNNAttack:
 
 if __name__ == "__main__":
     import os
-    # from advkit.defenses.dknn import SimpleDkNN
-    from advkit.defenses.dknn import DkNNBase
+    from advkit.defenses.dknn import SimpleDkNN
     from advkit.convnets.vgg import VGG
     from torchvision.datasets import CIFAR10
-
-
-    class SimpleDkNN(DkNNBase):
-
-        def __init__(
-                self,
-                model,
-                train_data,
-                train_targets,
-                n_class=10,
-                hidden_layers=-1,
-                n_neighbors=5,
-                device=torch.device("cpu")
-        ):
-            super(SimpleDkNN, self).__init__(
-                model,
-                train_data,
-                train_targets,
-                n_class,
-                hidden_layers,
-                n_neighbors,
-                device
-            )
-
-        def __call__(self, x):
-            hidden_reprs, _ = self._get_hidden_repr(x)
-            knns = [nn.kneighbors(hidden_repr, return_distance=False)
-                    for hidden_repr, nn in zip(hidden_reprs, self._nns)]
-            knns = np.concatenate(knns, axis=1)
-            knn_labs = self.train_targets[knns]
-            knn_proba = np.stack(list(map(
-                lambda x: np.bincount(x, minlength=10),
-                knn_labs
-            )))
-            return knn_proba
 
     ROOT = os.path.expanduser("~/advkit")
     DATA_PATH = os.path.join(ROOT, "datasets")
