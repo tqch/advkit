@@ -23,13 +23,19 @@ DATASET_CONFIGS = {
         "importer": datasets.CIFAR10,
         "transform_train": transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2470, 0.2435, 0.2616)),
+            transforms.Normalize(
+                mean=(0.4914, 0.4822, 0.4465),
+                std=(0.2470, 0.2435, 0.2616)
+            ),
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomCrop(size=32, padding=4)
         ]),
         "transform_test": transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2470, 0.2435, 0.2616))
+            transforms.Normalize(
+                mean=(0.4914, 0.4822, 0.4465),
+                std=(0.2470, 0.2435, 0.2616)
+            )
         ]),
         "batch_size": 128
     }
@@ -78,7 +84,8 @@ def get_dataloader(
         download = not os.path.exists(os.path.join(root, data_folder))
     if not train:
         if transform_test is None:
-            transform_test = configs["transform_test"] if augmentation else transforms.ToTensor()
+            transform_test = configs["transform_test"]\
+                if augmentation else transforms.ToTensor()
         dataset = importer(
             root=root,
             train=False,
@@ -88,9 +95,11 @@ def get_dataloader(
         return DataLoader(dataset, batch_size=test_batch_size, shuffle=False)
     else:
         if transform_train is None:
-            transform_train = configs["transform_train"] if augmentation else transforms.ToTensor()
+            transform_train = configs["transform_train"]\
+                if augmentation else transforms.ToTensor()
         if transform_test is None:
-            transform_test = configs["transform_test"] if augmentation else transforms.ToTensor()
+            transform_test = configs["transform_test"]\
+                if augmentation else transforms.ToTensor()
         if val_size is None:
             dataset = importer(
                 root=root,
@@ -101,7 +110,11 @@ def get_dataloader(
             return DataLoader(dataset, batch_size=train_batch_size, shuffle=True)
         else:
             dataset = importer(root=root, train=True, download=download)
-            trainset, valset = train_test_split(dataset, test_size=val_size, random_state=random_state)
+            trainset, valset = train_test_split(
+                dataset,
+                test_size=val_size,
+                random_state=random_state
+            )
             trainset = PyTorchDataset(trainset, transform=transform_train)
             valset = PyTorchDataset(valset, transform=transform_test)
             return (

@@ -122,12 +122,13 @@ class DkNN(DkNNBase):
             model,
             train_data,
             train_targets,
+            calib_size=0.02,
             n_class=10,
             hidden_layers=-1,
             n_neighbors=5,
             device=torch.device("cpu")
     ):
-
+        self.calib_size = calib_size
         super(DkNN, self).__init__(
             model,
             train_data,
@@ -139,8 +140,8 @@ class DkNN(DkNNBase):
         )
         self._calib_alphas = self._calc_alpha(calibration=True)
 
-    @staticmethod
     def _split_data(
+            self,
             train_data,
             train_targets,
             calib_size=0.02,
@@ -149,7 +150,7 @@ class DkNN(DkNNBase):
         train_inds, calib_inds = train_test_split(
             np.arange(len(train_targets)),
             shuffle=True,
-            test_size=calib_size,
+            test_size=self.calib_size,
             random_state=random_state
         )
         train_inds = torch.LongTensor(train_inds)
@@ -188,6 +189,41 @@ class DkNN(DkNNBase):
         confidence = pvalue.max(axis=1)
         credibility = np.sort(pvalue, axis=1)[:, -2]
         return prediction, confidence, credibility
+
+
+class SimpleDkNN(DkNNBase):
+
+    def __init__(
+            self,
+            model,
+            train_data,
+            train_targets,
+            n_class=10,
+            hidden_layers=-1,
+            n_neighbors=5,
+            device=torch.device("cpu")
+    ):
+        super(DkNN, self).__init__(
+            model,
+            train_data,
+            train_targets,
+            n_class,
+            hidden_layers,
+            n_neighbors,
+            device
+        )
+
+    def __call__(self, x):
+        hidden_reprs, _ = self._get_hidden_repr(x)
+        knns = [nn.kneighbors(hidden_repr, return_distance=False)
+                for hidden_repr, nn in zip(hidden_reprs, self._nns)]
+        knns = np.concatenate(knns, axis=1)
+        knn_labs = self.train_targets[knns]
+        knn_proba = np.stack(list(map(
+            lambda x:np.bincount(x,minlength=10),
+            knn_labs
+        )))
+        return knn_proba.argmax(axis=1)
 
 
 if __name__ == "__main__":

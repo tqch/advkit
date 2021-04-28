@@ -21,6 +21,7 @@ def adv_train(
         targeted=False,
         loss_fn=nn.CrossEntropyLoss(),
         batch_size=128,
+        num_eval=None,
         augmentation=True,
         dataset="cifar10",
         data_path=DATA_PATH,
@@ -35,7 +36,14 @@ def adv_train(
         train_batch_size=batch_size,
         augmentation=augmentation
     )
-    testloader = get_dataloader(dataset=dataset, root=data_path, augmentation=augmentation)
+    testloader = get_dataloader(
+        dataset=dataset,
+        root=data_path,
+        test_batch_size=batch_size,
+        augmentation=augmentation
+    )
+    if num_eval == -1:
+        num_eval = len(testloader)
     set_seed(42)
     pgd = PGD(
         eps=eps,
@@ -47,7 +55,6 @@ def adv_train(
         device=device
     )
     model.to(device)
-
     for ep in range(epochs):
         train_loss_clean = 0.
         train_correct_clean = 0
@@ -76,7 +83,7 @@ def adv_train(
                 train_loss_adv += loss.item() * x.size(0)
                 train_correct_adv += (pred == y.to(device)).sum().item()
 
-                if i < len(t) - 1:
+                if i < len(t) - 1 or num_eval is None:
                     t.set_postfix({
                         "train_loss_clean": train_loss_clean / train_total,
                         "train_acc_clean": train_correct_clean / train_total,
@@ -90,7 +97,7 @@ def adv_train(
                     test_correct_adv = 0
                     test_total = 0
                     model.eval()
-                    for x, y in testloader:
+                    for _, (x, y) in zip(range(num_eval), testloader):
                         with torch.no_grad():
                             out = model(x.to(device))
                             pred = out.max(dim=1)[1]
