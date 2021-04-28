@@ -25,7 +25,7 @@ class VGG(nn.Module):
         self.block5 = self._get_basic_block(512, 512, self.conv_layers_config[4])
 
         post_conv_shape = self.input_shape[1] // 2 ** 5, self.input_shape[2] // 2 ** 5
-        intermediate_dimension = 1024\
+        intermediate_dimension = 512\
             if post_conv_shape[0] * post_conv_shape[1] == 1 else 4096
 
         self.final_block = nn.Sequential(
