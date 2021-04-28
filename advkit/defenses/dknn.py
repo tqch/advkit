@@ -203,7 +203,7 @@ class SimpleDkNN(DkNNBase):
             n_neighbors=5,
             device=torch.device("cpu")
     ):
-        super(DkNN, self).__init__(
+        super(SimpleDkNN, self).__init__(
             model,
             train_data,
             train_targets,
@@ -229,22 +229,21 @@ class SimpleDkNN(DkNNBase):
 if __name__ == "__main__":
     import os
     from advkit.attacks.pgd import PGD
-    from advkit.utils.data import get_dataloader
+    from advkit.utils.data import get_dataloader,ROOT,DATA_PATH,WEIGHTS_FOLDER
     from advkit.convnets.vgg import VGG
     from torchvision.datasets import CIFAR10
 
-    ROOT = "../datasets"
-    MODEL_WEIGHTS = "../model_weights/cifar10_vgg16.pt"
+    MODEL_WEIGHTS = os.path.join(WEIGHTS_FOLDER, "cifar10_vgg16.pt")
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    DOWNLOAD = not os.path.exists("../datasets/cifar-10-python.tar.gz")
+    DOWNLOAD = not os.path.exists(os.path.join(DATA_PATH, "cifar-10-python.tar.gz"))
 
-    trainset = CIFAR10(root=ROOT, train=True, download=DOWNLOAD)
+    trainset = CIFAR10(root=DATA_PATH, train=True, download=DOWNLOAD)
     train_data, train_targets = (
         torch.FloatTensor(trainset.data.transpose(0, 3, 1, 2) / 255.)[:2000],
         torch.LongTensor(trainset.targets)[:2000]
     )  # for memory's sake, only take 2000 as train set
 
-    testloader = get_dataloader(dataset="cifar10", root=ROOT, test_batch_size=128)
+    testloader = get_dataloader(dataset="cifar10", test_batch_size=128)
 
     model = VGG.from_default_config("vgg16")
     model.load_state_dict(torch.load(MODEL_WEIGHTS, map_location=DEVICE))
@@ -252,9 +251,9 @@ if __name__ == "__main__":
     model.to(DEVICE)
     dknn = DkNN(model, train_data, train_targets, device=DEVICE)
 
-    pgd = PGD(eps=8 / 255., step_size=2 / 255., batch_size=128)
+    pgd = PGD(eps=8 / 255., step_size=2 / 255., batch_size=128, device=DEVICE)
     x, y = next(iter(testloader))
-    x_adv = pgd.generate(model, x, y, device=DEVICE)
+    x_adv = pgd.generate(model, x, y)
 
     pred_benign, _, _ = dknn(x.to(DEVICE))
     acc_benign = (pred_benign == y.numpy()).astype("float").mean()

@@ -144,20 +144,20 @@ class DKNNAttack:
                 self._model = model
                 self.hidden_mappings = [
                     m[1] for m in model.named_children()
-                    if isinstance(m[1], nn.Sequential) and "classifier" not in m[0]
+                    if isinstance(m[1], nn.Sequential) and "final_block" not in m[0]
                 ]
                 if hidden_layers == -1:
                     self.hidden_layers = list(range(len(self.hidden_mappings)))
                 else:
                     self.hidden_layers = hidden_layers
-                self.classifier = self._model.classifier
+                self.final_block = self._model.final_block
 
             def forward(self, x):
                 hidden_reprs = []
                 for mp in self.hidden_mappings:
                     x = mp(x)
                     hidden_reprs.append(x)
-                out = self.classifier(x.flatten(start_dim=1))
+                out = self.final_block(x.flatten(start_dim=1))
                 return [hidden_reprs[i] for i in self.hidden_layers], out
 
             def forward_branch(self, hidden_layer):
@@ -312,13 +312,49 @@ class DKNNAttack:
 
 if __name__ == "__main__":
     import os
-    from advkit.defenses.dknn import SimpleDkNN
+    # from advkit.defenses.dknn import SimpleDkNN
+    from advkit.defenses.dknn import DkNNBase
     from advkit.convnets.vgg import VGG
     from torchvision.datasets import CIFAR10
 
+
+    class SimpleDkNN(DkNNBase):
+
+        def __init__(
+                self,
+                model,
+                train_data,
+                train_targets,
+                n_class=10,
+                hidden_layers=-1,
+                n_neighbors=5,
+                device=torch.device("cpu")
+        ):
+            super(SimpleDkNN, self).__init__(
+                model,
+                train_data,
+                train_targets,
+                n_class,
+                hidden_layers,
+                n_neighbors,
+                device
+            )
+
+        def __call__(self, x):
+            hidden_reprs, _ = self._get_hidden_repr(x)
+            knns = [nn.kneighbors(hidden_repr, return_distance=False)
+                    for hidden_repr, nn in zip(hidden_reprs, self._nns)]
+            knns = np.concatenate(knns, axis=1)
+            knn_labs = self.train_targets[knns]
+            knn_proba = np.stack(list(map(
+                lambda x: np.bincount(x, minlength=10),
+                knn_labs
+            )))
+            return knn_proba
+
     ROOT = os.path.expanduser("~/advkit")
     DATA_PATH = os.path.join(ROOT, "datasets")
-    WEIGHTS_PATH = os.path.join(ROOT, "model_weights/cifar_vgg16.pt")
+    WEIGHTS_PATH = os.path.join(ROOT, "model_weights/cifar10_vgg16.pt")
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     DOWNLOAD = not os.path.exists(os.path.join(DATA_PATH, "cifar-10-python.tar.gz"))
 
