@@ -33,12 +33,14 @@ class PGD:
             self,
             x,
             center=None,
-            eps=1
+            eps=(0, 1)
     ):
+        x_denormalized = x * self.std + self.mean
         if center is None:
-            center = self.mean
-        x_unnormalized = (x - center) * self.std
-        x_clipped = x_unnormalized.clamp(-eps, eps) / self.std + center
+            x_clipped = x_denormalized.clamp(*eps) / self.std + self.mean
+        else:
+            x_clipped = ((x-center) * self.std).clamp(-eps, eps) / self.std + center
+
         return x_clipped
 
     def attack(
