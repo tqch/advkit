@@ -14,7 +14,7 @@ class PGD:
             targeted=False,
             loss_fn=nn.CrossEntropyLoss(),
             batch_size=64,
-            device = torch.device("cpu")
+            device=torch.device("cpu")
     ):
         self.eps = eps
         self.step_size = step_size
@@ -39,7 +39,7 @@ class PGD:
             x_denormalized = x * self.std + self.mean
             x_clipped = (x_denormalized.clamp(*eps) - self.mean) / self.std
         else:
-            x_clipped = ((x-center) * self.std).clamp(-eps, eps) / self.std + center
+            x_clipped = ((x - center) * self.std).clamp(-eps, eps) / self.std + center
 
         return x_clipped
 
@@ -53,7 +53,7 @@ class PGD:
     ):
         if x_adv is None:
             if self.random_init:
-                x_adv = self.step_size / self.std * torch.randn_like(x) + x
+                x_adv = self.eps / self.std * (2 * torch.rand_like(x) - 1) + x
                 x_adv = self._clip(x_adv)
             else:
                 x_adv = torch.clone(x).detach()

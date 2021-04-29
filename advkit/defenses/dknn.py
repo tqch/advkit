@@ -72,7 +72,7 @@ class DkNNBase:
             def __init__(self, model, hidden_layers):
                 super(ModelWrapper, self).__init__()
                 self._model = model
-                self.initial_block = self._model.initial_block\
+                self.initial_block = self._model.initial_block \
                     if hasattr(self._model, "initial_block") else nn.Identity()
                 self.intermediate_blocks = [
                     mod[1] for mod in model.named_children() if not ("initial" in mod[0] or "final" in mod[0])
@@ -94,7 +94,7 @@ class DkNNBase:
 
             def forward_branch(self, hidden_layer):
 
-                mappings = self.intermediate_blocks[:hidden_layer+1]
+                mappings = self.intermediate_blocks[:hidden_layer + 1]
 
                 def branch(x):
                     out = self.initial_block(x)
@@ -220,7 +220,7 @@ class SimpleDkNN(DkNNBase):
         knns = np.concatenate(knns, axis=1)
         knn_labs = self.train_targets[knns]
         knn_proba = np.stack(list(map(
-            lambda x:np.bincount(x,minlength=10),
+            lambda x: np.bincount(x, minlength=10),
             knn_labs
         )))
         return knn_proba.argmax(axis=1)
@@ -229,7 +229,7 @@ class SimpleDkNN(DkNNBase):
 if __name__ == "__main__":
     import os
     from advkit.attacks.pgd import PGD
-    from advkit.utils.data import get_dataloader,ROOT,DATA_PATH,WEIGHTS_FOLDER
+    from advkit.utils.data import get_dataloader, DATA_PATH, WEIGHTS_FOLDER
     from advkit.convnets.vgg import VGG
     from torchvision.datasets import CIFAR10
 
@@ -242,13 +242,13 @@ if __name__ == "__main__":
         torch.FloatTensor(trainset.data.transpose(0, 3, 1, 2) / 255.)[:2000],
         torch.LongTensor(trainset.targets)[:2000]
     )  # for memory's sake, only take 2000 as train set
-
     testloader = get_dataloader(dataset="cifar10", test_batch_size=128)
 
     model = VGG.from_default_config("vgg16")
     model.load_state_dict(torch.load(MODEL_WEIGHTS, map_location=DEVICE))
     model.eval()
     model.to(DEVICE)
+
     dknn = DkNN(model, train_data, train_targets, device=DEVICE)
 
     pgd = PGD(eps=8 / 255., step_size=2 / 255., batch_size=128, device=DEVICE)
