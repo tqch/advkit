@@ -35,9 +35,9 @@ class PGD:
             center=None,
             eps=(0, 1)
     ):
-        x_denormalized = x * self.std + self.mean
         if center is None:
-            x_clipped = x_denormalized.clamp(*eps) / self.std + self.mean
+            x_denormalized = x * self.std + self.mean
+            x_clipped = (x_denormalized.clamp(*eps) - self.mean) / self.std
         else:
             x_clipped = ((x-center) * self.std).clamp(-eps, eps) / self.std + center
 
@@ -114,7 +114,12 @@ if __name__ == "__main__":
     model.eval()
     model.to(DEVICE)
 
-    pgd = PGD(eps=8 / 255., step_size=2 / 255, batch_size=128, device=DEVICE)
+    pgd = PGD(
+        eps=8 / 255.,
+        step_size=2 / 255,
+        batch_size=128,
+        device=DEVICE
+    )
     x, y = next(iter(testset))
     x_adv = pgd.generate(model, x, y)
 

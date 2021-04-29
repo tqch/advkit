@@ -16,6 +16,8 @@ DATASET_CONFIGS = {
             transforms.ToTensor(),
             transforms.Normalize(mean=(0.1307,), std=(0.3081,))
         ]),
+        "mean": (0.1307, ),
+        "std": (0.3081, ),
         "batch_size": 128
     },
     "cifar10": {
@@ -37,6 +39,8 @@ DATASET_CONFIGS = {
                 std=(0.2470, 0.2435, 0.2616)
             )
         ]),
+        "mean": (0.4914, 0.4822, 0.4465),
+        "std": (0.2470, 0.2435, 0.2616),
         "batch_size": 128
     }
 }

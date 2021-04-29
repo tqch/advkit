@@ -76,6 +76,7 @@ def adv_train(
                 x_adv = pgd.generate(model, x, y)
                 model.train()
                 out = model(x_adv.to(device))
+                pred = out.max(dim=1)[1]
                 loss = loss_fn(out, y.to(device))
                 optimizer.zero_grad()
                 loss.backward()
@@ -138,12 +139,61 @@ def adv_train(
 
 
 if __name__ == "__main__":
+    import math
     from advkit.convnets.vgg import VGG
-    from torch.optim import SGD
+    from advkit.utils.data import WEIGHTS_FOLDER, DATA_PATH, DATASET_CONFIGS
+    from torch.optim import SGD, lr_scheduler
 
     model = VGG.from_default_config("vgg16")
     model.to(DEVICE)
-    epochs = 1
-    loss_fn = nn.CrossEntropyLoss()
-    optimizer = SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4, nesterov=True)
-    adv_train(model, optimizer=optimizer, epochs=epochs)
+    WEIGHTS_PATH = os.path.join(WEIGHTS_FOLDER, "cifar10_vgg_adv.pt")
+    mean, std = DATASET_CONFIGS["cifar10"]["mean"], DATASET_CONFIGS["cifar10"]["std"]
+    if os.path.exists(WEIGHTS_PATH):
+        model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=DEVICE))
+        model.eval()
+        testloader = get_dataloader(
+            "cifar10",
+            root=DATA_PATH,
+            test_batch_size=512,
+            augmentation=True
+        )
+        pgd = PGD(
+            eps=8 / 255,
+            step_size=10,
+            mean=mean,
+            std=std,
+            device=DEVICE
+        )
+        test_correct = 0
+        test_total = 0
+        for (x, y) in testloader:
+            x_adv = pgd.generate(model, x, y)
+            with torch.no_grad():
+                pred = model(x_adv.to(DEVICE)).max(dim=1)[1]
+            test_correct += (pred == y.to(DEVICE)).sum().item()
+            test_total += x.size(0)
+        print(
+            "The adversarial accuracy against PGD attack is %f"
+            % (test_correct / test_total)
+        )
+    else:
+        epochs = 100
+        lr = 0.1
+        loss_fn = nn.CrossEntropyLoss()
+        optimizer = SGD(
+            model.parameters(),
+            lr=lr,
+            momentum=0.9,
+            weight_decay=1e-4,
+            nesterov=True
+        )
+        scheduler = lr_scheduler.LambdaLR(
+            optimizer,
+            lr_lambda=lambda epoch: lr - 0.45 * lr * (1 - math.cos(math.pi * epoch / epochs))
+        )
+        adv_train(
+            model,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            epochs=epochs
+        )

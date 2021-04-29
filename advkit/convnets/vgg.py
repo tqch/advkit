@@ -102,7 +102,7 @@ if __name__ == "__main__":
             root=DATA_PATH,
             train=True,
             val_size=0.1,
-            train_batch_size=64
+            train_batch_size=64.
         )
         set_seed(42)
         model = VGG.from_default_config("vgg16")
