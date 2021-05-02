@@ -114,6 +114,19 @@ class DkNNBase:
             for hidden_repr in tqdm(hidden_reprs, desc="Building nearest neighbors classifiers")
         ]
 
+    def _get_nns(self, x):
+        hidden_reprs, _ = self._get_hidden_repr(x)
+        knns = [nn.kneighbors(hidden_repr, return_distance=False)
+                for hidden_repr, nn in zip(hidden_reprs, self._nns)]
+        knns = np.concatenate(knns, axis=1)
+        return knns
+
+    def predict_proba(self, knn_labs):
+        return np.stack(list(map(
+            lambda x: np.bincount(x, minlength=10),
+            knn_labs
+        ))) / knn_labs.shape[1]
+
 
 class DkNN(DkNNBase):
 
@@ -162,14 +175,9 @@ class DkNN(DkNNBase):
 
     def _calc_alpha(self, x=None, calibration=False):
 
-        if not calibration:
-            hidden_reprs, _ = self._get_hidden_repr(x)
-        else:
-            hidden_reprs, _ = self._get_hidden_repr(self.calib_data)
+        knns = self._get_hidden_repr(self.calib_data)\
+        if calibration else self._get_nns(x)
 
-        knns = [nn.kneighbors(hidden_repr, return_distance=False)
-                for hidden_repr, nn in zip(hidden_reprs, self._nns)]
-        knns = np.concatenate(knns, axis=1)
         knn_labs = self.train_targets[knns]
 
         if not calibration:
@@ -214,16 +222,9 @@ class SimpleDkNN(DkNNBase):
         )
 
     def __call__(self, x):
-        hidden_reprs, _ = self._get_hidden_repr(x)
-        knns = [nn.kneighbors(hidden_repr, return_distance=False)
-                for hidden_repr, nn in zip(hidden_reprs, self._nns)]
-        knns = np.concatenate(knns, axis=1)
+        knns = self._get_nns(x)
         knn_labs = self.train_targets[knns]
-        knn_proba = np.stack(list(map(
-            lambda x: np.bincount(x, minlength=10),
-            knn_labs
-        )))
-        return knn_proba.argmax(axis=1)
+        return self.predict_proba(knn_labs)
 
 
 if __name__ == "__main__":

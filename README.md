@@ -24,3 +24,7 @@
 
 - **Adversarial training:** Towards Deep Learning Models Resistant to Adversarial Attacks [[Madry et al., 2017]](https://arxiv.org/abs/1706.06083)
 - **DkNN:** Deep k-Nearest Neighbors: Towards Confident, Interpretable and Robust Deep Learning [[Papernot et al., 2018]](https://arxiv.org/abs/1803.04765)
+- **TRADES:** Theoretically Principled Trade-off between Robustness and Accuracy [[Zhang et al., 2019]](https://arxiv.org/abs/1901.08573)
+  
+*Note: TRADES is the abbreviation of TRadeoff-inspired Adversarial DEfense via Surrogate-loss minimization*
+

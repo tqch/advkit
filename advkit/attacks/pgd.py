@@ -13,6 +13,7 @@ class PGD:
             random_init=True,
             targeted=False,
             loss_fn=nn.CrossEntropyLoss(),
+            out_activation=nn.Identity(),
             batch_size=64,
             device=torch.device("cpu")
     ):
@@ -23,6 +24,8 @@ class PGD:
         self.random_init = random_init
         self.targeted = targeted
         self.loss_fn = loss_fn
+        self.out_activation = out_activation
+
         self.batch_size = batch_size
         self.device = device
 
@@ -58,7 +61,10 @@ class PGD:
             else:
                 x_adv = torch.clone(x).detach()
         x_adv.requires_grad_(True)
-        pred_adv = model(x_adv)
+        out_adv = model(x_adv)
+        if isinstance(out_adv, (list, tuple)):
+            out_adv = out_adv[-1]
+        pred_adv = self.out_activation(out_adv)
         if self.targeted:
             assert targets is not None, "Target labels not found!"
             loss = self.loss_fn(pred_adv, targets)
@@ -97,6 +103,12 @@ class PGD:
             x_adv.append(x_adv_batch)
         return torch.cat(x_adv, dim=0).cpu()
 
+    def to(self, device):
+        self.device = device
+        self.mean = self.mean.to(device)
+        self.std = self.std.to(device)
+        return self
+
 
 if __name__ == "__main__":
     from advkit.utils.data import get_dataloader
@@ -108,19 +120,23 @@ if __name__ == "__main__":
     WEIGHTS_PATH = os.path.join(ROOT, "model_weights/cifar10_vgg16.pt")
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    testset = get_dataloader(dataset="cifar10", root=DATA_PATH)
+    testloader = get_dataloader(
+        dataset="cifar10",
+        root=DATA_PATH,
+        test_batch_size=256
+    )
     model = VGG.from_default_config("vgg16")
     model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=DEVICE))
     model.eval()
     model.to(DEVICE)
 
     pgd = PGD(
-        eps=8 / 255.,
+        eps=32 / 255.,
         step_size=2 / 255,
         batch_size=128,
         device=DEVICE
     )
-    x, y = next(iter(testset))
+    x, y = next(iter(testloader))
     x_adv = pgd.generate(model, x, y)
 
     pred_adv = model(x_adv.to(DEVICE)).max(dim=1)[1].detach()

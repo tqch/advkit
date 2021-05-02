@@ -9,7 +9,7 @@ from tqdm import tqdm
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def adv_train(
+def trades(
         model,
         optimizer,
         scheduler=None,
@@ -20,6 +20,11 @@ def adv_train(
         std=(0.2470, 0.2435, 0.2616),
         targeted=False,
         loss_fn=nn.CrossEntropyLoss(),
+        gaussian_std=0.001,
+        regularizer=nn.KLDivLoss(reduction="batchmean"),
+        balancing_factor=6,
+        out_activation=nn.LogSoftmax(dim=1),
+        label_transformation=nn.Softmax(dim=1),
         batch_size=128,
         num_eval=None,
         augmentation=True,
@@ -27,7 +32,8 @@ def adv_train(
         data_path=DATA_PATH,
         weights_folder=WEIGHTS_FOLDER,
         device=DEVICE,
-        save=True
+        save=True,
+        eval_attacker=None
 ):
     trainloader = get_dataloader(
         dataset=dataset,
@@ -50,16 +56,19 @@ def adv_train(
         step_size=step_size,
         mean=mean,
         std=std,
+        random_init=False,
         targeted=targeted,
+        loss_fn=regularizer,
+        out_activation=out_activation,
         batch_size=batch_size,
         device=device
     )
+
     model.to(device)
     for ep in range(epochs):
         train_loss_clean = 0.
         train_correct_clean = 0
         train_loss_adv = 0.
-        train_correct_adv = 0
         train_total = 0
 
         model.train()
@@ -73,23 +82,27 @@ def adv_train(
                 train_loss_clean += loss.item() * x.size(0)
                 train_correct_clean += (pred == y.to(device)).sum().item()
                 train_total += x.size(0)
-                x_adv = pgd.generate(model, x, y)
+                x_adv = pgd.generate(
+                    model,
+                    x + gaussian_std * torch.randn_like(x),
+                    label_transformation(out)
+                )
                 model.train()
-                out = model(x_adv.to(device))
-                pred = out.max(dim=1)[1]
-                loss = loss_fn(out, y.to(device))
+                out_adv = out_activation(model(x_adv.to(device)))
+                out = model(x.to(device))
+                loss_nat = loss_fn(out, y.to(device))
+                loss = loss_nat + balancing_factor * regularizer(out_adv, label_transformation(out))
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+
                 train_loss_adv += loss.item() * x.size(0)
-                train_correct_adv += (pred == y.to(device)).sum().item()
 
                 if i < len(t) - 1 or num_eval is None:
                     t.set_postfix({
-                        "train_loss_clean": train_loss_clean / train_total,
-                        "train_acc_clean": train_correct_clean / train_total,
-                        "train_loss_adv": train_loss_adv / train_total,
-                        "train_acc_adv": train_correct_adv / train_total,
+                        "train_loss_nat": train_loss_clean / train_total,
+                        "train_acc_nat": train_correct_clean / train_total,
+                        "train_loss_trades": train_loss_adv / train_total
                     })
                 else:
                     test_loss_clean = 0.
@@ -106,7 +119,7 @@ def adv_train(
                         test_loss_clean += loss.item() * x.size(0)
                         test_correct_clean += (pred == y.to(device)).sum().item()
                         test_total += x.size(0)
-                        x_adv = pgd.generate(model, x, y)
+                        x_adv = eval_attacker.generate(model, x, y)
                         with torch.no_grad():
                             out = model(x_adv.to(device))
                             pred = out.max(dim=1)[1]
@@ -114,14 +127,13 @@ def adv_train(
                         test_loss_adv += loss.item() * x.size(0)
                         test_correct_adv += (pred == y.to(device)).sum().item()
                     t.set_postfix({
-                        "train_loss_clean": train_loss_clean / train_total,
-                        "train_acc_clean": train_correct_clean / train_total,
-                        "train_loss_adv": train_loss_adv / train_total,
-                        "train_acc_adv": train_correct_adv / train_total,
-                        "test_loss_clean": test_loss_clean / test_total,
-                        "test_acc_clean": test_correct_clean / test_total,
-                        "test_loss_adv": test_loss_adv / test_total,
-                        "test_acc_adv": test_correct_adv / test_total,
+                        "train_loss_nat": train_loss_clean / train_total,
+                        "train_acc_nat": train_correct_clean / train_total,
+                        "train_loss_trades": train_loss_adv / train_total,
+                        "test_loss_nat": test_loss_clean / test_total,
+                        "test_acc_nat": test_correct_clean / test_total,
+                        "test_loss_rob": test_loss_adv / test_total,
+                        "test_acc_rob": test_correct_adv / test_total,
                     })
         if scheduler is not None:
             scheduler.step()
@@ -133,7 +145,7 @@ def adv_train(
             model.state_dict(),
             os.path.join(
                 weights_folder,
-                "_".join([dataset, model_name, "adv"]) + ".pt"
+                "_".join([dataset, model_name, "trades"]) + ".pt"
             ))
     return model
 
@@ -146,8 +158,16 @@ if __name__ == "__main__":
 
     model = VGG.from_default_config("vgg16")
     model.to(DEVICE)
-    WEIGHTS_PATH = os.path.join(WEIGHTS_FOLDER, "cifar10_vgg_adv.pt")
+    WEIGHTS_PATH = os.path.join(WEIGHTS_FOLDER, "cifar10_vgg_trades.pt")
     mean, std = DATASET_CONFIGS["cifar10"]["mean"], DATASET_CONFIGS["cifar10"]["std"]
+    pgd = PGD(
+        eps=8 / 255,
+        step_size=2 / 255,
+        mean=mean,
+        std=std,
+        max_iter=10,
+        device=DEVICE
+    )
     if os.path.exists(WEIGHTS_PATH):
         model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=DEVICE))
         model.eval()
@@ -156,13 +176,6 @@ if __name__ == "__main__":
             root=DATA_PATH,
             test_batch_size=512,
             augmentation=False
-        )
-        pgd = PGD(
-            eps=8 / 255,
-            step_size=10,
-            mean=mean,
-            std=std,
-            device=DEVICE
         )
         test_correct = 0
         test_total = 0
@@ -191,13 +204,14 @@ if __name__ == "__main__":
             optimizer,
             lr_lambda=lambda epoch: lr - 0.45 * lr * (1 - math.cos(math.pi * epoch / epochs))
         )
-        adv_train(
+        trades(
             model,
             optimizer=optimizer,
             scheduler=scheduler,
-            epochs=epochs,
             mean=(0, 0, 0),
             std=(1, 1, 1),
+            epochs=epochs,
             num_eval=2,
-            augmentation=False
+            augmentation=False,
+            eval_attacker=pgd
         )
