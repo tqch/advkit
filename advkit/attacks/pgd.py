@@ -64,14 +64,14 @@ class PGD:
         out_adv = model(x_adv)
         if isinstance(out_adv, (list, tuple)):
             out_adv = out_adv[-1]
-        pred_adv = self.out_activation(out_adv)
+        out_adv = self.out_activation(out_adv)
         if self.targeted:
             assert targets is not None, "Target labels not found!"
-            loss = self.loss_fn(pred_adv, targets)
+            loss = self.loss_fn(out_adv, targets)
         else:
-            loss = self.loss_fn(pred_adv, y)
-        loss.backward()
-        pert = self.step_size / self.std * x_adv.grad.sign()
+            loss = self.loss_fn(out_adv, y)
+        grad = torch.autograd.grad(loss, x_adv)[0]
+        pert = self.step_size / self.std * grad.sign()
         x_adv = self._clip(x_adv.data + pert)
         pert = self._clip(x_adv, center=x, eps=self.eps) - x
         return x + pert

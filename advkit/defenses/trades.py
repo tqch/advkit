@@ -146,10 +146,9 @@ def trades(
 
 
 if __name__ == "__main__":
-    import math
     from advkit.convnets.vgg import VGG
     from advkit.utils.data import WEIGHTS_FOLDER, DATA_PATH, DATASET_CONFIGS
-    from torch.optim import SGD, lr_scheduler
+    from torch.optim import SGD
 
     model = VGG.from_default_config("vgg16")
     model.to(DEVICE)
@@ -195,14 +194,9 @@ if __name__ == "__main__":
             weight_decay=1e-4,
             nesterov=True
         )
-        scheduler = lr_scheduler.LambdaLR(
-            optimizer,
-            lr_lambda=lambda epoch: lr - 0.45 * lr * (1 - math.cos(math.pi * epoch / epochs))
-        )
         trades(
             model,
             optimizer=optimizer,
-            scheduler=scheduler,
             mean=(0, 0, 0),
             std=(1, 1, 1),
             epochs=epochs,
