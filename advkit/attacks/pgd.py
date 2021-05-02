@@ -131,7 +131,7 @@ if __name__ == "__main__":
     model.to(DEVICE)
 
     pgd = PGD(
-        eps=32 / 255.,
+        eps=8 / 255.,
         step_size=2 / 255,
         batch_size=128,
         device=DEVICE

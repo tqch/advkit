@@ -66,47 +66,42 @@ def trades(
 
     model.to(device)
     for ep in range(epochs):
-        train_loss_clean = 0.
-        train_correct_clean = 0
-        train_loss_adv = 0.
+        train_loss_nat = 0.
+        train_correct_nat = 0
+        train_loss_trades = 0.
         train_total = 0
 
         model.train()
         with tqdm(trainloader, desc=f"{ep + 1}/{epochs} epochs:") as t:
             for i, (x, y) in enumerate(t):
-                model.eval()
-                with torch.no_grad():
-                    out = model(x.to(device))
-                    pred = out.max(dim=1)[1]
-                    loss = loss_fn(out, y.to(device))
-                train_loss_clean += loss.item() * x.size(0)
-                train_correct_clean += (pred == y.to(device)).sum().item()
+                out = model(x.to(device))
+                pred = out.max(dim=1)[1]
+                loss_nat = loss_fn(out, y.to(device))
+                train_loss_nat += loss_nat.item() * x.size(0)
+                train_correct_nat += (pred == y.to(device)).sum().item()
                 train_total += x.size(0)
                 x_adv = pgd.generate(
                     model,
                     x + gaussian_std * torch.randn_like(x),
-                    label_transformation(out)
+                    label_transformation(out.detach())  # stop gradient
                 )
                 model.train()
                 out_adv = out_activation(model(x_adv.to(device)))
-                out = model(x.to(device))
-                loss_nat = loss_fn(out, y.to(device))
-                loss = loss_nat + balancing_factor * regularizer(out_adv, label_transformation(out))
+                loss = loss_nat + balancing_factor * regularizer(out_adv, label_transformation(out.detach()))
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-
-                train_loss_adv += loss.item() * x.size(0)
+                train_loss_trades += loss.item() * x.size(0)
 
                 if i < len(t) - 1 or num_eval is None:
                     t.set_postfix({
-                        "train_loss_nat": train_loss_clean / train_total,
-                        "train_acc_nat": train_correct_clean / train_total,
-                        "train_loss_trades": train_loss_adv / train_total
+                        "train_loss_nat": train_loss_nat / train_total,
+                        "train_acc_nat": train_correct_nat / train_total,
+                        "train_loss_trades": train_loss_trades / train_total
                     })
                 else:
-                    test_loss_clean = 0.
-                    test_correct_clean = 0
+                    test_loss_nat = 0.
+                    test_correct_nat = 0
                     test_loss_adv = 0
                     test_correct_adv = 0
                     test_total = 0
@@ -116,8 +111,8 @@ def trades(
                             out = model(x.to(device))
                             pred = out.max(dim=1)[1]
                             loss = loss_fn(out, y.to(device))
-                        test_loss_clean += loss.item() * x.size(0)
-                        test_correct_clean += (pred == y.to(device)).sum().item()
+                        test_loss_nat += loss.item() * x.size(0)
+                        test_correct_nat += (pred == y.to(device)).sum().item()
                         test_total += x.size(0)
                         x_adv = eval_attacker.generate(model, x, y)
                         with torch.no_grad():
@@ -127,11 +122,11 @@ def trades(
                         test_loss_adv += loss.item() * x.size(0)
                         test_correct_adv += (pred == y.to(device)).sum().item()
                     t.set_postfix({
-                        "train_loss_nat": train_loss_clean / train_total,
-                        "train_acc_nat": train_correct_clean / train_total,
-                        "train_loss_trades": train_loss_adv / train_total,
-                        "test_loss_nat": test_loss_clean / test_total,
-                        "test_acc_nat": test_correct_clean / test_total,
+                        "train_loss_nat": train_loss_nat / train_total,
+                        "train_acc_nat": train_correct_nat / train_total,
+                        "train_loss_trades": train_loss_trades / train_total,
+                        "test_loss_nat": test_loss_nat / test_total,
+                        "test_acc_nat": test_correct_nat / test_total,
                         "test_loss_rob": test_loss_adv / test_total,
                         "test_acc_rob": test_correct_adv / test_total,
                     })
