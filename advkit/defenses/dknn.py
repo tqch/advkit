@@ -16,6 +16,7 @@ class DkNNBase:
             n_class=10,
             hidden_layers=-1,
             n_neighbors=5,
+            metric="euclidean",
             device=torch.device("cpu")
     ):
 
@@ -30,6 +31,7 @@ class DkNNBase:
             self._split_data(torch.FloatTensor(train_data), np.array(train_targets))
 
         self.n_neighbors = n_neighbors
+        self.metric = metric
         self._nns = self._build_nns()
         self.n_class = n_class
 
@@ -110,7 +112,7 @@ class DkNNBase:
         hidden_reprs, _ = self._get_hidden_repr(self.train_data, return_targets=False)
 
         return [
-            NearestNeighbors(n_neighbors=self.n_neighbors, n_jobs=-1).fit(hidden_repr)
+            NearestNeighbors(n_neighbors=self.n_neighbors, metric=self.metric, n_jobs=-1).fit(hidden_repr)
             for hidden_repr in tqdm(hidden_reprs, desc="Building nearest neighbors classifiers")
         ]
 
@@ -139,6 +141,7 @@ class DkNN(DkNNBase):
             n_class=10,
             hidden_layers=-1,
             n_neighbors=5,
+            metric="euclidean",
             device=torch.device("cpu")
     ):
         self.calib_size = calib_size
@@ -148,8 +151,9 @@ class DkNN(DkNNBase):
             train_targets,
             n_class,
             hidden_layers,
-            n_neighbors,
-            device
+            n_neighbors=n_neighbors,
+            metric=metric,
+            device=device
         )
         self._calib_alphas = self._calc_alpha(calibration=True)
 
@@ -175,9 +179,7 @@ class DkNN(DkNNBase):
 
     def _calc_alpha(self, x=None, calibration=False):
 
-        knns = self._get_hidden_repr(self.calib_data)\
-        if calibration else self._get_nns(x)
-
+        knns = self._get_nns(self.calib_data) if calibration else self._get_nns(x)
         knn_labs = self.train_targets[knns]
 
         if not calibration:
@@ -199,7 +201,7 @@ class DkNN(DkNNBase):
         return prediction, confidence, credibility
 
 
-class SimpleDkNN(DkNNBase):
+class SimDkNN(DkNNBase):
 
     def __init__(
             self,
@@ -209,16 +211,18 @@ class SimpleDkNN(DkNNBase):
             n_class=10,
             hidden_layers=-1,
             n_neighbors=5,
+            metric="euclidean",
             device=torch.device("cpu")
     ):
-        super(SimpleDkNN, self).__init__(
+        super(SimDkNN, self).__init__(
             model,
             train_data,
             train_targets,
             n_class,
             hidden_layers,
-            n_neighbors,
-            device
+            n_neighbors=n_neighbors,
+            metric=metric,
+            device=device
         )
 
     def __call__(self, x):
@@ -250,16 +254,22 @@ if __name__ == "__main__":
     model.eval()
     model.to(DEVICE)
 
-    dknn = DkNN(model, train_data, train_targets, device=DEVICE)
+    dknn = SimDkNN(
+        model,
+        train_data,
+        train_targets,
+        metric="cosine",
+        device=DEVICE
+    )
 
     pgd = PGD(eps=8 / 255., step_size=2 / 255., batch_size=128, device=DEVICE)
     x, y = next(iter(testloader))
     x_adv = pgd.generate(model, x, y)
 
-    pred_benign, _, _ = dknn(x.to(DEVICE))
+    pred_benign = dknn(x.to(DEVICE)).argmax(axis=1)
     acc_benign = (pred_benign == y.numpy()).astype("float").mean()
     print(f"The benign accuracy is {acc_benign}")
 
-    pred_adv, _, _ = dknn(x_adv.to(DEVICE))
+    pred_adv = dknn(x_adv.to(DEVICE)).argmax(axis=1)
     acc_adv = (pred_adv == y.numpy()).astype("float").mean()
     print(f"The adversarial accuracy is {acc_adv}")
