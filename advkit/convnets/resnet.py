@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-cifar10_initial_block_config = [
+cifar10_feature_config = [
             {
                 "in_channels": 3,
                 "out_channels": 16,
@@ -12,7 +12,7 @@ cifar10_initial_block_config = [
             {"max_pool": False}
         ]
 
-imagenet_initial_block_config = [
+imagenet_feature_config = [
             {
                 "in_channels": 3,
                 "out_channels": 64,
@@ -26,72 +26,72 @@ imagenet_initial_block_config = [
 
 default_configs = {
     "resnet18": {
-        "initial_block_config": imagenet_initial_block_config,
+        "feature_config": imagenet_feature_config,
         "block_type": "basic",
-        "start_chans": 64,
+        "start_channels": 64,
         "n_class": 1000,
         "n_blocks": [2, 2, 2, 2]
     },
     "resnet20": {
-        "initial_block_config": cifar10_initial_block_config,
+        "feature_config": cifar10_feature_config,
         "block_type": "basic",
-        "start_chans": 16,
+        "start_channels": 16,
         "n_class": 10,
         "n_blocks": [3, 3, 3]
     },
     "resnet32": {
-        "initial_block_config": cifar10_initial_block_config,
+        "feature_config": cifar10_feature_config,
         "block_type": "basic",
-        "start_chans": 16,
+        "start_channels": 16,
         "n_class": 10,
         "n_blocks": [5, 5, 5]
     },
     "resnet34": {
-        "initial_block_config": imagenet_initial_block_config,
+        "feature_config": imagenet_feature_config,
         "block_type": "basic",
-        "start_chans": 64,
+        "start_channels": 64,
         "n_class": 1000,
         "n_blocks": [3, 4, 6, 3]
     },
     "resnet44": {
-        "initial_block_config": cifar10_initial_block_config,
+        "feature_config": cifar10_feature_config,
         "block_type": "basic",
-        "start_chans": 16,
+        "start_channels": 16,
         "n_class": 10,
         "n_blocks": [7, 7, 7]
     },
     "resnet50": {
-        "initial_block_config": imagenet_initial_block_config,
+        "feature_config": imagenet_feature_config,
         "block_type": "bottleneck",
-        "start_chans": 64,
+        "start_channels": 64,
         "n_class": 1000,
         "n_blocks": [3, 4, 6, 3]
     },
     "resnet56": {
-        "initial_block_config": cifar10_initial_block_config,
+        "feature_config": cifar10_feature_config,
         "block_type": "basic",
-        "start_chans": 16,
+        "start_channels": 16,
         "n_class": 10,
         "n_blocks": [9, 9, 9]
     },
     "resnet101": {
-        "initial_block_config": imagenet_initial_block_config,
+        "feature_config": imagenet_feature_config,
         "block_type": "bottleneck",
-        "start_chans": 64,
+        "start_channels": 64,
         "n_class": 1000,
         "n_blocks": [3, 4, 23, 3]
     },
     "resnet110": {
-        "initial_block_config": cifar10_initial_block_config,
+        "feature_config": cifar10_feature_config,
         "block_type": "basic",
-        "start_chans": 16,
+        "start_channels": 16,
         "n_class": 10,
         "n_blocks": [18, 18, 18]
     },
     "resnet152": {
-        "initial_block_config": imagenet_initial_block_config,
+        "feature_config": imagenet_feature_config,
         "block_type": "bottleneck",
-        "start_chans": 64,
+        "start_channels": 64,
         "n_class": 1000,
         "n_blocks": [3, 8, 36, 3]
     }
@@ -101,27 +101,28 @@ default_configs = {
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_chans, downsample=False):
+    def __init__(self, in_channels, downsample=False):
         super(BasicBlock, self).__init__()
 
         self.downsample = downsample
         stride = 1
-        out_chans = in_chans
+        out_channels = in_channels
         self.skip_connection = nn.Identity()
+        
         if self.downsample:
             stride = 2
-            out_chans = 2 * in_chans
+            out_channels = 2 * in_channels
             self.skip_connection = nn.Sequential(
-                nn.Conv2d(in_chans, out_chans, 1, stride, bias=False),
-                nn.BatchNorm2d(out_chans)
+                nn.Conv2d(in_channels, out_channels, 1, stride, bias=False),
+                nn.BatchNorm2d(out_channels)
             )
 
         self.plain_block = nn.Sequential(
-            nn.Conv2d(in_chans, out_chans, 3, stride, 1, bias=False),
-            nn.BatchNorm2d(out_chans),
+            nn.Conv2d(in_channels, out_channels, 3, stride, 1, bias=False),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.Conv2d(out_chans, out_chans, 3, 1, 1, bias=False),
-            nn.BatchNorm2d(out_chans)
+            nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False),
+            nn.BatchNorm2d(out_channels)
         )
         self.activation = nn.ReLU()
 
@@ -135,32 +136,32 @@ class BasicBlock(nn.Module):
 class BottleneckBlock(nn.Module):
     expansion = 4
 
-    def __init__(self, in_chans, downsample):
+    def __init__(self, in_channels, downsample):
         super(BottleneckBlock, self).__init__()
 
         self.downsample = downsample
         stride = 1
-        neck_chans = in_chans // self.expansion
-        out_chans = in_chans
+        neck_channels = in_channels // self.expansion
+        out_channels = in_channels
         self.skip_connection = nn.Identity()
         if self.downsample:
             stride = 2
-            neck_chans = in_chans * 2 // self.expansion
-            out_chans = 2 * in_chans
+            neck_channels = in_channels * 2 // self.expansion
+            out_channels = 2 * in_channels
             self.skip_connection = nn.Sequential(
-                nn.Conv2d(in_chans, out_chans, 1, stride, bias=False),
-                nn.BatchNorm2d(out_chans)
+                nn.Conv2d(in_channels, out_channels, 1, stride, bias=False),
+                nn.BatchNorm2d(out_channels)
             )
 
         self.plain_block = nn.Sequential(
-            nn.Conv2d(in_chans, neck_chans, 1, stride, 1, bias=False),
-            nn.BatchNorm2d(out_chans),
+            nn.Conv2d(in_channels, neck_channels, 1, stride, 1, bias=False),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.Conv2d(neck_chans, neck_chans, 3, 1, 1, bias=False),
-            nn.BatchNorm2d(neck_chans),
+            nn.Conv2d(neck_channels, neck_channels, 3, 1, 1, bias=False),
+            nn.BatchNorm2d(neck_channels),
             nn.ReLU(),
-            nn.Conv2d(neck_chans, out_chans, 1, 1, bias=False),
-            nn.BatchNorm2d(out_chans)
+            nn.Conv2d(neck_channels, out_channels, 1, 1, bias=False),
+            nn.BatchNorm2d(out_channels)
         )
         self.activation = nn.ReLU()
 
@@ -180,48 +181,54 @@ class ResNet(nn.Module):
 
     def __init__(
             self,
-            initial_block_config,
+            feature_config,
             block_type,
-            start_chans,
+            start_channels,
             n_class,
             n_blocks
     ):
         super(ResNet, self).__init__()
 
-        self.initial_block = nn.Sequential(
-            nn.Conv2d(**initial_block_config[0]),
-            nn.BatchNorm2d(initial_block_config[0]["out_channels"]),
+        self.feature = nn.Sequential(
+            nn.Conv2d(**feature_config[0]),
+            nn.BatchNorm2d(feature_config[0]["out_channels"]),
             nn.ReLU()
         )
-        if initial_block_config[1]["max_pool"]:
-            self.initial_block.add_module("max_pool", nn.MaxPool2d(3, 2, 1))
+        if feature_config[1]["max_pool"]:
+            self.feature.add_module("max_pool", nn.MaxPool2d(3, 2, 1))
 
         self.add_module(
-            "residual_block_1",
-            self._compose_blocks(block_type, start_chans, n_blocks[0], include_downsample=False)
+            "residual_layer_1",
+            self._make_layer(block_type, start_channels, n_blocks[0], include_downsample=False)
         )
 
         for i in range(1, len(n_blocks)):
             self.add_module(
-                f"residual_block_{i + 1}",
-                self._compose_blocks(block_type, 2 ** (i - 1) * start_chans, n_blocks[i])
+                f"residual_layer_{i + 1}",
+                self._make_layer(block_type, 2 ** (i - 1) * start_channels, n_blocks[i])
             )
 
-        self.final_block = nn.Sequential(
+        self.classifier = nn.Sequential(
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(start_dim=1),
-            nn.Linear(2 ** i * start_chans, n_class)
+            nn.Linear(2 ** i * start_channels, n_class)
         )
 
-    def _compose_blocks(self, block_type, in_chans, n_blocks, include_downsample=True):
+    def _make_layer(
+            self,
+            block_type,
+            in_channels,
+            n_blocks,
+            include_downsample=True
+    ):
 
         block = self.block[block_type]
-        blocks = [block(in_chans, downsample=include_downsample)]
-        out_chans = in_chans
+        blocks = [block(in_channels, downsample=include_downsample)]
+        out_channels = in_channels
         if include_downsample:
-            out_chans = 2 * in_chans
+            out_channels = 2 * in_channels
         for _ in range(1, n_blocks):
-            blocks.append(block(out_chans))
+            blocks.append(block(out_channels))
         return nn.Sequential(*blocks)
 
     def forward(self, x):

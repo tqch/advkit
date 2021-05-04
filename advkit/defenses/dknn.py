@@ -74,12 +74,15 @@ class DkNNBase:
             def __init__(self, model, hidden_layers):
                 super(ModelWrapper, self).__init__()
                 self._model = model
-                self.initial_block = self._model.initial_block \
-                    if hasattr(self._model, "initial_block") else nn.Identity()
-                self.intermediate_blocks = [
-                    mod[1] for mod in model.named_children() if not ("initial" in mod[0] or "final" in mod[0])
+                self.faeture = self._model.feature \
+                    if hasattr(self._model, "feature") else nn.Identity()
+                self.intermediate_layers = [
+                    mod[1]
+                    for mod in model.named_children()
+                    if not ("feature" in mod[0] or "classifier" in mod[0])
                 ]
-                self.final_block = self._model.final_block if hasattr(self._model, "final_block") else nn.Identity()
+                self.classifier = self._model.classifier\
+                    if hasattr(self._model, "classifier") else nn.Identity()
                 if hidden_layers == -1:
                     self.hidden_layers = tuple(range(len(self.intermediate_blocks)))
                 else:
@@ -87,11 +90,11 @@ class DkNNBase:
 
             def forward(self, x):
                 hidden_reprs = []
-                x = self.initial_block(x)
+                x = self.feature(x)
                 for block in self.intermediate_blocks:
                     x = block(x)
                     hidden_reprs.append(x.detach().cpu())
-                out = self.final_block(x).detach().cpu()
+                out = self.classifier(x).detach().cpu()
                 return [hidden_reprs[i] for i in self.hidden_layers], out
 
             def forward_branch(self, hidden_layer):
@@ -99,7 +102,7 @@ class DkNNBase:
                 mappings = self.intermediate_blocks[:hidden_layer + 1]
 
                 def branch(x):
-                    out = self.initial_block(x)
+                    out = self.feature(x)
                     for mp in mappings:
                         out = mp(out)
                     return out.flatten(start_dim=1)

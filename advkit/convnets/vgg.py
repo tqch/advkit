@@ -18,50 +18,50 @@ class VGG(nn.Module):
         self.input_shape = input_shape
         self.n_class = n_class
 
-        self.block1 = self._get_basic_block(3, 64, self.conv_layers_config[0])
-        self.block2 = self._get_basic_block(64, 128, self.conv_layers_config[1])
-        self.block3 = self._get_basic_block(128, 256, self.conv_layers_config[2])
-        self.block4 = self._get_basic_block(256, 512, self.conv_layers_config[3])
-        self.block5 = self._get_basic_block(512, 512, self.conv_layers_config[4])
+        self.layer1 = self._make_layer(3, 64, self.conv_layers_config[0])
+        self.layer2 = self._make_layer(64, 128, self.conv_layers_config[1])
+        self.layer3 = self._make_layer(128, 256, self.conv_layers_config[2])
+        self.layer4 = self._make_layer(256, 512, self.conv_layers_config[3])
+        self.layer5 = self._make_layer(512, 512, self.conv_layers_config[4])
 
         post_conv_shape = self.input_shape[1] // 2 ** 5, self.input_shape[2] // 2 ** 5
         intermediate_dimension = 512\
             if post_conv_shape[0] * post_conv_shape[1] == 1 else 4096
 
-        self.final_block = nn.Sequential(
+        self.classifier = nn.Sequential(
             nn.Flatten(start_dim=1),
             nn.Linear(post_conv_shape[0] * post_conv_shape[1] * 512, intermediate_dimension),
             nn.Dropout(0.5),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Linear(intermediate_dimension, intermediate_dimension),
             nn.Dropout(0.5),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Linear(intermediate_dimension, self.n_class)
         )
 
     @staticmethod
-    def _get_basic_block(in_chans, out_chans, n_layers):
+    def _make_layer(in_channels, out_channels, n_layers):
         layers = []
-        layers.append(nn.Conv2d(in_chans, out_chans, 3, 1, 1, bias=False))
-        layers.append(nn.BatchNorm2d(out_chans))
-        layers.append(nn.ReLU())
+        layers.append(nn.Conv2d(in_channels, out_channels, 3, 1, 1, bias=False))
+        layers.append(nn.BatchNorm2d(out_channels))
+        layers.append(nn.ReLU(inplace=True))
 
         for i in range(n_layers - 1):
-            layers.append(nn.Conv2d(out_chans, out_chans, 3, 1, 1, bias=False))
-            layers.append(nn.BatchNorm2d(out_chans))
-            layers.append(nn.ReLU())
+            layers.append(nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False))
+            layers.append(nn.BatchNorm2d(out_channels))
+            layers.append(nn.ReLU(inplace=True))
 
         layers.append(nn.MaxPool2d(2))
 
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.block1(x)
-        x = self.block2(x)
-        x = self.block3(x)
-        x = self.block4(x)
-        x = self.block5(x)
-        x = self.final_block(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+        x = self.layer5(x)
+        x = self.classifier(x)
 
         return x
 

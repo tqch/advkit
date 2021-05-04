@@ -12,12 +12,13 @@
 - **VGG:** Very Deep Convolutional Networks for Large-Scale Image Recognition [[Simonyan et al., 2014]](https://arxiv.org/abs/1409.1556)
 - **ResNet:** Deep Residual Learning for Image Recognition [[He et al., 2015]](https://arxiv.org/abs/1512.03385)
 - **(Not Implemented) InceptionNet:** [[Szegedy et al., 2015]](https://arxiv.org/abs/1512.00567)
+- **WideResNet:** Wide Residual Networks [[Zagoruyko & Komodakis, 2016]](https://arxiv.org/abs/1605.07146)
 - **DenseNet:** Densely Connected Convolutional Networks [[Huang et al., 2016]](https://arxiv.org/abs/1608.06993)
 
 ### Attacks
 
 - **PGD:** Towards Deep Learning Models Resistant to Adversarial Attacks [[Madry et al., 2017]](https://arxiv.org/abs/1706.06083)
-- **DkNN Attack:** On the Robustness of Deep K-Nearest Neighbors [[Sitawarin and Wagner, 2019]](https://arxiv.org/abs/1903.08333)
+- **DkNN Attack:** On the Robustness of Deep K-Nearest Neighbors [[Sitawarin & Wagner, 2019]](https://arxiv.org/abs/1903.08333)
 - **(Not implemented) Adv-kNN:** Adversarial Attacks On K-Nearest Neighbor Classifiers With Approximate Gradients [[Li et al., 2019]](https://arxiv.org/abs/1911.06591) 
 
 ### Defenses

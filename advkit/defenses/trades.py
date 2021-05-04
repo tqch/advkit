@@ -98,7 +98,9 @@ def trades(
                 out_benign = model(x.to(device))
                 loss_nat = loss_fn(out_benign, y.to(device))
                 out_adv = out_activation(model(x_adv.to(device)))
-                loss = loss_nat + balancing_factor * regularizer(out_adv, label_transformation(out_benign))
+                loss = loss_nat + balancing_factor * regularizer(
+                    out_adv, label_transformation(out_benign)
+                )
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
