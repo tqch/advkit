@@ -8,7 +8,7 @@ default_configs = {
         "widening_factor": 10,
         "start_channels": 16,
         "n_class": 10,
-        "dropout_prob": 0.5
+        "dropout_prob": 0.3
     },
     "WRN-28-12": {
         "block_type": "basic",
@@ -16,7 +16,7 @@ default_configs = {
         "widening_factor": 12,
         "start_channels": 16,
         "n_class": 100,
-        "dropout_prob": 0.5
+        "dropout_prob": 0.3
     },
     "WRN-40-10": {
         "block_type": "basic",
@@ -24,7 +24,7 @@ default_configs = {
         "widening_factor": 10,
         "start_channels": 16,
         "n_class": 100,
-        "dropout_prob": 0.5
+        "dropout_prob": 0.3
     },
     "WRN-50-2-bottleneck": {
         "block_type": "bottleneck",
@@ -54,18 +54,18 @@ class BasicBlock(nn.Module):
         self.downsample = in_channels != out_channels
         self.relu = nn.ReLU()
         self.bn1 = nn.BatchNorm2d(self.in_channels)
-        self.conv1 = nn.Conv2d(self.in_channels, self.out_channels, 3, self.downsample + 1, 1)
+        self.conv1 = nn.Conv2d(self.in_channels, self.out_channels, 3, self.downsample + 1, 1, bias=False)
         self.bn2 = nn.BatchNorm2d(self.out_channels)
-        self.conv2 = nn.Conv2d(self.out_channels, self.out_channels, 3, 1, 1)
+        self.conv2 = nn.Conv2d(self.out_channels, self.out_channels, 3, 1, 1, bias=False)
         self.projection = nn.Conv2d(
-            self.in_channels, self.out_channels, 1, self.downsample + 1, 0
+            self.in_channels, self.out_channels, 1, self.downsample + 1, 0, bias=False
         ) if self.downsample or is_initial else nn.Identity()
 
     def forward(self, x):
         skip_connection = self.projection(x)
         conv1 = self.conv1(self.relu(self.bn1(x)))
         if self.dropout_prob > 0:
-            conv1 = F.dropout(conv1, training=self.training, p=self.dropout_prob)
+            conv1 = F.dropout(conv1, p=self.dropout_prob, training=self.training)
         conv2 = self.conv2(self.relu(self.bn2(conv1)))
         return conv2 + skip_connection
 
@@ -88,13 +88,13 @@ class BottleneckBlock(nn.Module):
         self.downsample = in_channels != out_channels and not is_initial
         self.relu = nn.ReLU()
         self.bn1 = nn.BatchNorm2d(self.in_channels)
-        self.conv1 = nn.Conv2d(self.in_channels, self.neck_channels, 1, self.downsample + 1, 0)
+        self.conv1 = nn.Conv2d(self.in_channels, self.neck_channels, 1, self.downsample + 1, 0, bias=False)
         self.bn2 = nn.BatchNorm2d(self.neck_channels)
-        self.conv2 = nn.Conv2d(self.neck_channels, self.neck_channels, 3, 1, 1)
+        self.conv2 = nn.Conv2d(self.neck_channels, self.neck_channels, 3, 1, 1, bias=False)
         self.bn3 = nn.BatchNorm2d(self.out_channels)
-        self.conv3 = nn.Conv2d(self.neck_channels, self.out_channels, 1, 1, 0)
+        self.conv3 = nn.Conv2d(self.neck_channels, self.out_channels, 1, 1, 0, bias=False)
         self.projection = nn.Conv2d(
-            self.in_channels, self.out_channels, 1, self.downsample + 1, 0
+            self.in_channels, self.out_channels, 1, self.downsample + 1, 0, bias=False
         ) if self.downsample or is_initial else nn.Identity()
 
     def forward(self, x):
@@ -125,10 +125,10 @@ class WideResNet(nn.Module):
         self.n_class = n_class
         self.block = self.block_dict[block_type]
         if start_channels == 16:
-            self.feature = nn.Conv2d(3, start_channels, 3, 3, 1)
+            self.feature = nn.Conv2d(3, start_channels, 3, 3, 1, bias=False)
         else:
             self.feature = nn.Sequential(
-                nn.Conv2d(3, start_channels, 7, 2, 3),
+                nn.Conv2d(3, start_channels, 7, 2, 3, bias=False),
                 nn.MaxPool2d(2),
                 self._make_layer(start_channels, start_channels, 1, layer_config[0])
             )

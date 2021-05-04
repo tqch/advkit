@@ -88,16 +88,16 @@ class DenseBlock(nn.Module):
             bottleneck_width = 4 * self.growth_rate
             return nn.Sequential(
                 nn.BatchNorm2d(in_channels),
-                nn.ReLU(),
+                nn.ReLU(inplace=True),
                 nn.Conv2d(in_channels, bottleneck_width, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(bottleneck_width),
-                nn.ReLU(),
+                nn.ReLU(inplace=True),
                 nn.Conv2d(bottleneck_width, self.growth_rate, 3, 1, 1, bias=False)
             )
         else:
             return nn.Sequential(
                 nn.BatchNorm2d(in_channels),
-                nn.ReLU(),
+                nn.ReLU(inplace=True),
                 nn.Conv2d(in_channels, self.growth_rate, 3, 1, 1, bias=False)
             )
 

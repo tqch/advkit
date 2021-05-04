@@ -117,10 +117,10 @@ class BasicBlock(nn.Module):
                 nn.BatchNorm2d(out_channels)
             )
 
-        self.plain_block = nn.Sequential(
+        self.conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 3, stride, 1, bias=False),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False),
             nn.BatchNorm2d(out_channels)
         )
@@ -128,7 +128,7 @@ class BasicBlock(nn.Module):
 
     def forward(self, x):
         projection = self.skip_connection(x)
-        x = self.plain_block(x)
+        x = self.conv(x)
         x = self.activation(x + projection)
         return x
 
@@ -153,13 +153,13 @@ class BottleneckBlock(nn.Module):
                 nn.BatchNorm2d(out_channels)
             )
 
-        self.plain_block = nn.Sequential(
+        self.conv = nn.Sequential(
             nn.Conv2d(in_channels, neck_channels, 1, stride, 1, bias=False),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Conv2d(neck_channels, neck_channels, 3, 1, 1, bias=False),
             nn.BatchNorm2d(neck_channels),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Conv2d(neck_channels, out_channels, 1, 1, bias=False),
             nn.BatchNorm2d(out_channels)
         )
@@ -167,7 +167,7 @@ class BottleneckBlock(nn.Module):
 
     def forward(self, x):
         projection = self.skip_connection(x)
-        x = self.plain_block(x)
+        x = self.conv(x)
         x = self.activation(x + projection)
         return x
 

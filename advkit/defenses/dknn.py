@@ -61,6 +61,12 @@ class DkNNBase:
             for hidden_repr in hidden_reprs
         ], axis=0) for i in range(len(self.hidden_layers))]
 
+        if self.metric == "cosine":
+            hidden_reprs = [
+                hidden_repr / hidden_repr.pow(2).sum(dim=1, keepdim=True).sqrt()
+                for hidden_repr in hidden_reprs
+            ]
+
         if return_targets:
             outs = np.concatenate(outs, axis=0)
             targets = outs.argmax(axis=1)
@@ -115,7 +121,7 @@ class DkNNBase:
         hidden_reprs, _ = self._get_hidden_repr(self.train_data, return_targets=False)
 
         return [
-            NearestNeighbors(n_neighbors=self.n_neighbors, metric=self.metric, n_jobs=-1).fit(hidden_repr)
+            NearestNeighbors(n_neighbors=self.n_neighbors, n_jobs=-1).fit(hidden_repr)
             for hidden_repr in tqdm(hidden_reprs, desc="Building nearest neighbors classifiers")
         ]
 
