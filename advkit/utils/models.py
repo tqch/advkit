@@ -3,6 +3,8 @@ from tqdm import tqdm
 import random
 import numpy as np
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+import advkit.convnets as cns
+
 
 OPTIMIZER_CONFIGS = {
     "mnist": {
@@ -14,6 +16,13 @@ OPTIMIZER_CONFIGS = {
         "weight_decay": 5e-4,
         "nesterov": True
     }
+}
+
+MODEL_DICT = {
+    "vgg": cns.vgg.VGG,
+    "resnet": cns.resnet.ResNet,
+    "wide_resnet": cns.wide_resnet.WideResNet,
+    "densenet": cns.densenet.DenseNet
 }
 
 
@@ -49,10 +58,10 @@ def train(
         model.train()
         with tqdm(trainloader, desc=f"{ep + 1}/{epochs} epochs:") as t:
             for i, (x, y) in enumerate(t):
-                optimizer.zero_grad()
                 out = model(x.to(device))
                 pred = out.max(dim=1)[1]
                 loss = loss_fn(out, y.to(device))
+                optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
                 train_loss += loss.item() * x.size(0)
@@ -109,3 +118,15 @@ def evaluate(
             test_correct += (pred == y.to(device)).sum().item()
             test_total += x.size(0)
     print("Test accuracy is %.3f" % (test_correct / test_total))
+
+
+def get_model(
+        model_type,
+        default_config=None,
+        **model_params,
+):
+    model = MODEL_DICT[model_type]
+    if default_config is None:
+        return model(**model_params)
+    else:
+        return model.from_default_config(default_config)

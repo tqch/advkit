@@ -9,7 +9,7 @@ class PGD:
             step_size=2 / 255.,
             mean=(0, 0, 0),
             std=(1, 1, 1),
-            max_iter=20,
+            max_iter=10,
             random_init=True,
             targeted=False,
             loss_fn=nn.CrossEntropyLoss(),

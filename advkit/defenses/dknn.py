@@ -17,6 +17,7 @@ class DkNNBase:
             hidden_layers=-1,
             n_neighbors=5,
             metric="euclidean",
+            batch_size=128,
             device=torch.device("cpu")
     ):
 
@@ -32,6 +33,7 @@ class DkNNBase:
 
         self.n_neighbors = n_neighbors
         self.metric = metric
+        self.batch_size = batch_size
         self._nns = self._build_nns()
         self.n_class = n_class
 
@@ -39,15 +41,15 @@ class DkNNBase:
     def _split_data(train_data, train_targets):
         return train_data, None, train_targets, None
 
-    def _get_hidden_repr(self, x, batch_size=256, return_targets=False):
+    def _get_hidden_repr(self, x, return_targets=False):
 
         hidden_reprs = []
         targets = None
         if return_targets:
             outs = []
 
-        for i in range(0, x.size(0), batch_size):
-            x_batch = x[i:i + batch_size]
+        for i in range(0, x.size(0), self.batch_size):
+            x_batch = x[i:i + self.batch_size]
             if return_targets:
                 hidden_reprs_batch, outs_batch = self._model(x_batch.to(self.device))
             else:
@@ -63,7 +65,7 @@ class DkNNBase:
 
         if self.metric == "cosine":
             hidden_reprs = [
-                hidden_repr / hidden_repr.pow(2).sum(dim=1, keepdim=True).sqrt()
+                hidden_repr / np.sqrt(np.power(hidden_repr, 2).sum(axis=1, keepdims=True))
                 for hidden_repr in hidden_reprs
             ]
 
@@ -80,7 +82,7 @@ class DkNNBase:
             def __init__(self, model, hidden_layers):
                 super(ModelWrapper, self).__init__()
                 self._model = model
-                self.faeture = self._model.feature \
+                self.feature = self._model.feature \
                     if hasattr(self._model, "feature") else nn.Identity()
                 self.intermediate_layers = [
                     mod[1]
@@ -90,22 +92,25 @@ class DkNNBase:
                 self.classifier = self._model.classifier\
                     if hasattr(self._model, "classifier") else nn.Identity()
                 if hidden_layers == -1:
-                    self.hidden_layers = tuple(range(len(self.intermediate_blocks)))
+                    self.hidden_layers = tuple(range(len(self.intermediate_layers)))
                 else:
                     self.hidden_layers = hidden_layers
 
             def forward(self, x):
                 hidden_reprs = []
                 x = self.feature(x)
-                for block in self.intermediate_blocks:
+                for block in self.intermediate_layers:
                     x = block(x)
                     hidden_reprs.append(x.detach().cpu())
-                out = self.classifier(x).detach().cpu()
+                try:
+                    out = self.classifier(x).detach().cpu()
+                except RuntimeError:
+                    out = None
                 return [hidden_reprs[i] for i in self.hidden_layers], out
 
             def forward_branch(self, hidden_layer):
 
-                mappings = self.intermediate_blocks[:hidden_layer + 1]
+                mappings = self.intermediate_layers[:hidden_layer + 1]
 
                 def branch(x):
                     out = self.feature(x)
@@ -151,6 +156,7 @@ class DkNN(DkNNBase):
             hidden_layers=-1,
             n_neighbors=5,
             metric="euclidean",
+            batch_size=128,
             device=torch.device("cpu")
     ):
         self.calib_size = calib_size
@@ -162,6 +168,7 @@ class DkNN(DkNNBase):
             hidden_layers,
             n_neighbors=n_neighbors,
             metric=metric,
+            batch_size=batch_size,
             device=device
         )
         self._calib_alphas = self._calc_alpha(calibration=True)
@@ -221,6 +228,7 @@ class SimDkNN(DkNNBase):
             hidden_layers=-1,
             n_neighbors=5,
             metric="euclidean",
+            batch_size=128,
             device=torch.device("cpu")
     ):
         super(SimDkNN, self).__init__(
@@ -231,6 +239,7 @@ class SimDkNN(DkNNBase):
             hidden_layers,
             n_neighbors=n_neighbors,
             metric=metric,
+            batch_size=batch_size,
             device=device
         )
 
@@ -244,7 +253,7 @@ if __name__ == "__main__":
     import os
     from advkit.attacks.pgd import PGD
     from advkit.utils.data import get_dataloader, DATA_PATH, WEIGHTS_FOLDER
-    from advkit.convnets.vgg import VGG
+    from advkit.utils.models import get_model
     from torchvision.datasets import CIFAR10
 
     MODEL_WEIGHTS = os.path.join(WEIGHTS_FOLDER, "cifar10_vgg16.pt")
@@ -258,7 +267,7 @@ if __name__ == "__main__":
     )  # for memory's sake, only take 2000 as train set
     testloader = get_dataloader(dataset="cifar10", test_batch_size=128)
 
-    model = VGG.from_default_config("vgg16")
+    model = get_model("vgg", "vgg16")
     model.load_state_dict(torch.load(MODEL_WEIGHTS, map_location=DEVICE))
     model.eval()
     model.to(DEVICE)
@@ -267,14 +276,19 @@ if __name__ == "__main__":
         model,
         train_data,
         train_targets,
+        hidden_layers=[3, ],
         metric="cosine",
         device=DEVICE
     )
 
-    pgd = PGD(eps=8 / 255., step_size=2 / 255., batch_size=128, device=DEVICE)
+    pgd = PGD(
+        eps=8 / 255.,
+        step_size=2 / 255.,
+        batch_size=128,
+        device=DEVICE
+    )
     x, y = next(iter(testloader))
     x_adv = pgd.generate(model, x, y)
-
     pred_benign = dknn(x.to(DEVICE)).argmax(axis=1)
     acc_benign = (pred_benign == y.numpy()).astype("float").mean()
     print(f"The benign accuracy is {acc_benign}")

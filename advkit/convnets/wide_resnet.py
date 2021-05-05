@@ -65,7 +65,7 @@ class BasicBlock(nn.Module):
         skip_connection = self.projection(x)
         conv1 = self.conv1(self.relu(self.bn1(x)))
         if self.dropout_prob > 0:
-            conv1 = F.dropout(conv1, p=self.dropout_prob, training=self.training)
+            conv1 = F.dropout(conv1, p=self.dropout_prob, training=self.training, inplace=True)
         conv2 = self.conv2(self.relu(self.bn2(conv1)))
         return conv2 + skip_connection
 
@@ -125,7 +125,7 @@ class WideResNet(nn.Module):
         self.n_class = n_class
         self.block = self.block_dict[block_type]
         if start_channels == 16:
-            self.feature = nn.Conv2d(3, start_channels, 3, 3, 1, bias=False)
+            self.feature = nn.Conv2d(3, start_channels, 3, 1, 1, bias=False)
         else:
             self.feature = nn.Sequential(
                 nn.Conv2d(3, start_channels, 7, 2, 3, bias=False),
@@ -203,10 +203,11 @@ if __name__ == "__main__":
     TRAIN = not os.path.exists(WEIGHTS_PATH)
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    testloader = get_dataloader(dataset="cifar10", root=DATA_PATH)
+    augmentation = False
+    testloader = get_dataloader(dataset="cifar10", root=DATA_PATH, augmentation=augmentation)
 
     if not TRAIN:
-        model = WideResNet.from_default_config("resnet56")
+        model = WideResNet.from_default_config("WRN-28-10")
         model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=DEVICE))
         model.to(DEVICE)
         evaluate(model, testloader, device=DEVICE)
@@ -217,15 +218,18 @@ if __name__ == "__main__":
             root=DATA_PATH,
             train=True,
             val_size=0.1,
-            train_batch_size=128
+            train_batch_size=128,
+            augmentation=augmentation
         )
-        set_seed(42)
         model = WideResNet.from_default_config("WRN-28-10")
         model.to(DEVICE)
-        epochs = 100
+        epochs = 200
         loss_fn = nn.CrossEntropyLoss()
-        optimizer = SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4, nesterov=True)
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
+        optimizer = SGD(model.paramters(), **OPTIMIZER_CONFIGS["cifar"])
+        scheduler = lr_scheduler.LambdaLR(
+            optimizer,
+            lambda epochs: 0.1 * 0.2 ** ((epochs >= 60) + (epochs >= 120) + (epochs >= 160))
+        )
         best_epoch, best_val_acc = train(
             model,
             epochs,
@@ -236,20 +240,21 @@ if __name__ == "__main__":
             valloader,
             DEVICE
         )
-
-        set_seed(42)
         trainloader = get_dataloader(
             dataset="cifar10",
             root=DATA_PATH,
             train=True,
-            train_batch_size=64
+            train_batch_size=128,
+            augmentation=augmentation
         )
-        set_seed(42)
         model = WideResNet.from_default_config("WRN-28-10")
         model.to(DEVICE)
         loss_fn = nn.CrossEntropyLoss()
-        optimizer = SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4, nesterov=True)
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
+        optimizer = SGD(model.paramters(), **OPTIMIZER_CONFIGS["cifar"])
+        scheduler = lr_scheduler.LambdaLR(
+            optimizer,
+            lambda epochs: 0.1 * 0.2 ** ((epochs >= 60) + (epochs >= 120) + (epochs >= 160))
+        )
         train(
             model,
             best_epoch,

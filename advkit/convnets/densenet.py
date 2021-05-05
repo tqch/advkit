@@ -210,13 +210,12 @@ if __name__ == "__main__":
             val_size=0.1,
             train_batch_size=64
         )
-        set_seed(42)
         model = DenseNet.from_default_config("densenet-bc-100-12")
         model.to(DEVICE)
         epochs = 100
         loss_fn = nn.CrossEntropyLoss()
         optimizer = SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4, nesterov=True)
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=75, gamma=0.1)
         best_epoch, best_val_acc = train(
             model,
             epochs,
@@ -227,19 +226,17 @@ if __name__ == "__main__":
             valloader,
             DEVICE
         )
-        set_seed(42)
         trainloader = get_dataloader(
             dataset="cifar10",
             root=DATA_PATH,
             train=True,
             train_batch_size=64
         )
-        set_seed(42)
         model = DenseNet.from_default_config("densenet-bc-100-12")
         model.to(DEVICE)
         loss_fn = nn.CrossEntropyLoss()
-        optimizer = SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4, nesterov=True)
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
+        optimizer = SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4, nesterov=True)
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=75, gamma=0.1)
         train(
             model,
             best_epoch,
