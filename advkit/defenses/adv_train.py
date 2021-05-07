@@ -14,14 +14,14 @@ def adv_train(
         optimizer,
         scheduler=None,
         epochs=200,
-        eps=4 / 255,
+        eps=8 / 255,
         step_size=2 / 255,
         mean=(0.4914, 0.4822, 0.4465),
         std=(0.2470, 0.2435, 0.2616),
         targeted=False,
         loss_fn=nn.CrossEntropyLoss(),
         batch_size=128,
-        num_eval=None,
+        num_eval_batches=None,
         augmentation=True,
         dataset="cifar10",
         data_path=DATA_PATH,
@@ -42,8 +42,8 @@ def adv_train(
         test_batch_size=batch_size,
         augmentation=augmentation
     )
-    if num_eval == -1:
-        num_eval = len(testloader)
+    if num_eval_batches == -1:
+        num_eval_batches = len(testloader)
     set_seed(42)
     pgd = PGD(
         eps=eps,
@@ -84,7 +84,7 @@ def adv_train(
                 train_loss_adv += loss.item() * x.size(0)
                 train_correct_adv += (pred == y.to(device)).sum().item()
 
-                if i < len(t) - 1 or num_eval is None:
+                if i < len(t) - 1 or num_eval_batches is None:
                     t.set_postfix({
                         "train_loss_clean": train_loss_clean / train_total,
                         "train_acc_clean": train_correct_clean / train_total,
@@ -98,7 +98,7 @@ def adv_train(
                     test_correct_adv = 0
                     test_total = 0
                     model.eval()
-                    for _, (x, y) in zip(range(num_eval), testloader):
+                    for _, (x, y) in zip(range(num_eval_batches), testloader):
                         with torch.no_grad():
                             out = model(x.to(device))
                             pred = out.max(dim=1)[1]
@@ -205,6 +205,6 @@ if __name__ == "__main__":
             epochs=epochs,
             mean=mean,
             std=std,
-            num_eval=2,
+            num_eval_batches=2,
             augmentation=augmentation
         )

@@ -8,7 +8,7 @@ def load_requirements():
 
 setup(
     name="advkit",
-    version="0.0.5",
+    version="0.0.6",
     author="Tianqi Chen",
     description="Adversarial Learning Kit",
     license="MIT",
