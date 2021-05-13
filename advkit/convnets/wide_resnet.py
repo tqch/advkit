@@ -208,38 +208,11 @@ if __name__ == "__main__":
 
     if not TRAIN:
         model = WideResNet.from_default_config("WRN-28-10")
-        model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=DEVICE))
+        model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=DEVICE)["model"])
         model.to(DEVICE)
         evaluate(model, testloader, device=DEVICE)
     else:
         set_seed(42)
-        trainloader, valloader = get_dataloader(
-            dataset="cifar10",
-            root=DATA_PATH,
-            train=True,
-            val_size=0.1,
-            train_batch_size=128,
-            augmentation=augmentation
-        )
-        model = WideResNet.from_default_config("WRN-28-10")
-        model.to(DEVICE)
-        epochs = 200
-        loss_fn = nn.CrossEntropyLoss()
-        optimizer = SGD(model.paramters(), **OPTIMIZER_CONFIGS["cifar"])
-        scheduler = lr_scheduler.LambdaLR(
-            optimizer,
-            lambda epochs: 0.1 * 0.2 ** ((epochs >= 60) + (epochs >= 120) + (epochs >= 160))
-        )
-        best_epoch, best_val_acc = train(
-            model,
-            epochs,
-            trainloader,
-            loss_fn,
-            optimizer,
-            scheduler,
-            valloader,
-            DEVICE
-        )
         trainloader = get_dataloader(
             dataset="cifar10",
             root=DATA_PATH,
@@ -247,23 +220,28 @@ if __name__ == "__main__":
             train_batch_size=128,
             augmentation=augmentation
         )
+
         model = WideResNet.from_default_config("WRN-28-10")
         model.to(DEVICE)
+        epochs = 200
         loss_fn = nn.CrossEntropyLoss()
-        optimizer = SGD(model.paramters(), **OPTIMIZER_CONFIGS["cifar"])
+        optimizer = SGD(model.parameters(), **OPTIMIZER_CONFIGS["cifar10"])
         scheduler = lr_scheduler.LambdaLR(
             optimizer,
             lambda epochs: 0.1 * 0.2 ** ((epochs >= 60) + (epochs >= 120) + (epochs >= 160))
         )
-        train(
+
+        best_epoch, best_val_acc = train(
             model,
-            best_epoch,
+            epochs,
             trainloader,
             loss_fn,
             optimizer,
             scheduler,
             testloader,
-            DEVICE
+            num_eval_batches=-1,
+            checkpoint_path=WEIGHTS_PATH,
+            device=DEVICE
         )
         if not os.path.exists(os.path.dirname(WEIGHTS_PATH)):
             os.makedirs(os.path.dirname(WEIGHTS_PATH))

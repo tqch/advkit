@@ -2,7 +2,7 @@ import torch
 from tqdm import tqdm
 import random
 import numpy as np
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingWarmRestarts, StepLR, LambdaLR
 import advkit.convnets as cns
 
 
@@ -41,15 +41,23 @@ def train(
         optimizer,
         scheduler=None,
         valloader=None,
+        num_eval_batches=-1,
+        checkpoint_path=None,
         device=torch.device("cpu")
 ):
 
     # track the best epoch that has highest validation accuracy
     best_epoch, best_val_acc = None, None
 
+    n_iter = len(trainloader)  # number of iterations per epoch
+
     if valloader is not None:
         best_epoch = -1
         best_val_acc = 0
+        assert num_eval_batches < n_iter,\
+            "number of evaluation batches should be less than the number of iterations per epoch"
+        if num_eval_batches == -1:
+            num_eval_batches = n_iter
 
     for ep in range(epochs):
         train_loss = 0.
@@ -64,6 +72,8 @@ def train(
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+                if isinstance(optimizer, CosineAnnealingWarmRestarts):
+                    scheduler.step(ep + i/n_iter)
                 train_loss += loss.item() * x.size(0)
                 train_correct += (pred == y.to(device)).sum().item()
                 train_total += x.size(0)
@@ -78,7 +88,7 @@ def train(
                     val_total = 0
                     model.eval()
                     with torch.no_grad():
-                        for x, y in valloader:
+                        for _, (x, y) in zip(range(num_eval_batches), valloader):
                             out = model(x.to(device))
                             pred = out.max(dim=1)[1]
                             loss = loss_fn(out, y.to(device))
@@ -94,11 +104,20 @@ def train(
                     if val_correct / val_total > best_val_acc:
                         best_val_acc = val_correct / val_total
                         best_epoch = ep + 1
+                        if checkpoint_path is not None:
+                            torch.save({
+                                "epoch": best_epoch,
+                                "val_acc": best_val_acc,
+                                "model": model.state_dict(),
+                                "optimizer_state": optimizer.state_dict()
+                            }, checkpoint_path)
         if scheduler is not None:
             if isinstance(scheduler, ReduceLROnPlateau):
                 scheduler.step(val_correct/val_total)
-            else:
+            elif isinstance(scheduler, (StepLR, LambdaLR)):
                 scheduler.step()
+            else:
+                raise NotImplementedError
 
     return best_epoch, best_val_acc
 

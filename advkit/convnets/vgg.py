@@ -75,7 +75,6 @@ class VGG(nn.Module):
 
 
 if __name__ == "__main__":
-
     import os
     from advkit.utils.models import *
     from advkit.utils.data import get_dataloader
@@ -88,7 +87,8 @@ if __name__ == "__main__":
     TRAIN = not os.path.exists(WEIGHTS_PATH)
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    testloader = get_dataloader(dataset="cifar10", root=DATA_PATH)
+    augmentation = False
+    testloader = get_dataloader(dataset="cifar10", root=DATA_PATH, augmentation=augmentation)
 
     if not TRAIN:
         model = VGG.from_default_config("vgg16")
@@ -97,20 +97,21 @@ if __name__ == "__main__":
         evaluate(model, testloader, device=DEVICE)
     else:
         set_seed(42)
-        trainloader, valloader = get_dataloader(
+        trainloader = get_dataloader(
             dataset="cifar10",
             root=DATA_PATH,
             train=True,
-            val_size=0.1,
-            train_batch_size=64
+            train_batch_size=128,
+            augmentation=augmentation
         )
+
         model = VGG.from_default_config("vgg16")
         model.to(DEVICE)
-        epochs = 100
+        epochs = 200
         loss_fn = nn.CrossEntropyLoss()
-        optimizer = SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4, nesterov=True)
+        optimizer = SGD(model.parameters(), **OPTIMIZER_CONFIGS["cifar10"])
         # scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", factor=0.1, patience=5)
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=75, gamma=0.1)
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
         best_epoch, best_val_acc = train(
             model,
             epochs,
@@ -118,29 +119,10 @@ if __name__ == "__main__":
             loss_fn,
             optimizer,
             scheduler,
-            valloader,
-            DEVICE
-        )
-        trainloader = get_dataloader(
-            dataset="cifar10",
-            root=DATA_PATH,
-            train=True,
-            train_batch_size=64
-        )
-        model = VGG.from_default_config("vgg16")
-        model.to(DEVICE)
-        loss_fn = nn.CrossEntropyLoss()
-        optimizer = SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4, nesterov=True)
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
-        train(
-            model,
-            best_epoch,
-            trainloader,
-            loss_fn,
-            optimizer,
-            scheduler,
             testloader,
-            DEVICE
+            num_eval_batches=-1,
+            checkpoint_path=WEIGHTS_PATH,
+            device=DEVICE
         )
         if not os.path.exists(os.path.dirname(WEIGHTS_PATH)):
             os.makedirs(os.path.dirname(WEIGHTS_PATH))
