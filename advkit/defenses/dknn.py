@@ -256,7 +256,7 @@ if __name__ == "__main__":
     from advkit.utils.models import get_model
     from torchvision.datasets import CIFAR10
 
-    MODEL_WEIGHTS = os.path.join(WEIGHTS_FOLDER, "cifar10_vgg16.pt")
+    CHECKPOINT_PATH = os.path.join(WEIGHTS_FOLDER, "cifar10_vgg16.pt")
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     DOWNLOAD = not os.path.exists(os.path.join(DATA_PATH, "cifar-10-python.tar.gz"))
 
@@ -268,7 +268,7 @@ if __name__ == "__main__":
     testloader = get_dataloader(dataset="cifar10", test_batch_size=128)
 
     model = get_model("vgg", "vgg16")
-    model.load_state_dict(torch.load(MODEL_WEIGHTS, map_location=DEVICE))
+    model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=DEVICE)["model"])
     model.eval()
     model.to(DEVICE)
 

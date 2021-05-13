@@ -1,10 +1,10 @@
+import os
 import torch
 from tqdm import tqdm
 import random
 import numpy as np
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingWarmRestarts, StepLR, LambdaLR
 import advkit.convnets as cns
-
 
 OPTIMIZER_CONFIGS = {
     "mnist": {
@@ -46,25 +46,43 @@ def train(
         device=torch.device("cpu")
 ):
 
-    # track the best epoch that has highest validation accuracy
-    best_epoch, best_val_acc = None, None
-
     n_iter = len(trainloader)  # number of iterations per epoch
+
+    if checkpoint_path is not None:
+        if os.path.exists(checkpoint_path):
+            checkpoint = torch.load(checkpoint_path)
+            assert checkpoint.keys() == {"epoch", "val_acc", "model", "optimizer_state"}, \
+                "invalid checkpoint"
+            best_epoch = checkpoint["epoch"] - 1
+            best_val_acc = checkpoint["val_acc"]
+            train_epochs = epochs - checkpoint["epoch"]
+            model.load_state_dict(checkpoint["model_state"])
+            optimizer.load_state_dict(checkpoint["optimizer_state"])
+            if scheduler is not None:
+                if isinstance(scheduler, CosineAnnealingWarmRestarts):
+                    scheduler.step(best_epoch + 2 - 1 / n_iter)
+                elif isinstance(scheduler, (StepLR, LambdaLR)):
+                    scheduler.step(best_epoch)
+
+    else:
+        train_epochs = epochs
+        # track the best epoch that has highest validation accuracy
+        best_epoch, best_val_acc = None, None
 
     if valloader is not None:
         best_epoch = -1
         best_val_acc = 0
-        assert num_eval_batches < n_iter,\
+        assert num_eval_batches < n_iter, \
             "number of evaluation batches should be less than the number of iterations per epoch"
         if num_eval_batches == -1:
             num_eval_batches = n_iter
 
-    for ep in range(epochs):
+    for ep in range(train_epochs):
         train_loss = 0.
         train_correct = 0
         train_total = 0
         model.train()
-        with tqdm(trainloader, desc=f"{ep + 1}/{epochs} epochs:") as t:
+        with tqdm(trainloader, desc=f"{ep + best_epoch + 2}/{epochs} epochs:") as t:
             for i, (x, y) in enumerate(t):
                 out = model(x.to(device))
                 pred = out.max(dim=1)[1]
@@ -73,7 +91,7 @@ def train(
                 loss.backward()
                 optimizer.step()
                 if isinstance(optimizer, CosineAnnealingWarmRestarts):
-                    scheduler.step(ep + i/n_iter)
+                    scheduler.step(ep + best_epoch + 1 + i / n_iter)
                 train_loss += loss.item() * x.size(0)
                 train_correct += (pred == y.to(device)).sum().item()
                 train_total += x.size(0)
@@ -103,21 +121,20 @@ def train(
                     })
                     if val_correct / val_total > best_val_acc:
                         best_val_acc = val_correct / val_total
-                        best_epoch = ep + 1
+                        best_epoch = ep + best_epoch + 2
                         if checkpoint_path is not None:
+                            if not os.path.exists(os.path.dirname(checkpoint_path)):
+                                os.makedirs(os.path.dirname(checkpoint_path))
                             torch.save({
                                 "epoch": best_epoch,
                                 "val_acc": best_val_acc,
                                 "model": model.state_dict(),
                                 "optimizer_state": optimizer.state_dict()
                             }, checkpoint_path)
-        if scheduler is not None:
-            if isinstance(scheduler, ReduceLROnPlateau):
-                scheduler.step(val_correct/val_total)
-            elif isinstance(scheduler, (StepLR, LambdaLR)):
+                    if isinstance(scheduler, ReduceLROnPlateau):
+                        scheduler.step(val_correct / val_total)
+            if isinstance(scheduler, (StepLR, LambdaLR)):
                 scheduler.step()
-            else:
-                raise NotImplementedError
 
     return best_epoch, best_val_acc
 

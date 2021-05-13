@@ -199,8 +199,8 @@ if __name__ == "__main__":
     ROOT = os.path.expanduser("~/advkit")
     DATA_PATH = os.path.join(ROOT, "datasets")
 
-    WEIGHTS_PATH = os.path.join(ROOT, "model_weights/cifar10_wrn-28-10.pt")
-    TRAIN = not os.path.exists(WEIGHTS_PATH)
+    CHECKPOINT_PATH = os.path.join(ROOT, "model_weights/cifar10_wrn-28-10.pt")
+    TRAIN = not os.path.exists(CHECKPOINT_PATH)
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     augmentation = False
@@ -208,7 +208,7 @@ if __name__ == "__main__":
 
     if not TRAIN:
         model = WideResNet.from_default_config("WRN-28-10")
-        model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=DEVICE)["model"])
+        model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=DEVICE)["model"])
         model.to(DEVICE)
         evaluate(model, testloader, device=DEVICE)
     else:
@@ -240,9 +240,6 @@ if __name__ == "__main__":
             scheduler,
             testloader,
             num_eval_batches=-1,
-            checkpoint_path=WEIGHTS_PATH,
+            checkpoint_path=CHECKPOINT_PATH,
             device=DEVICE
         )
-        if not os.path.exists(os.path.dirname(WEIGHTS_PATH)):
-            os.makedirs(os.path.dirname(WEIGHTS_PATH))
-        torch.save(model.state_dict(), WEIGHTS_PATH)

@@ -146,14 +146,14 @@ if __name__ == "__main__":
 
     model = VGG.from_default_config("vgg16")
     model.to(DEVICE)
-    WEIGHTS_PATH = os.path.join(WEIGHTS_FOLDER, "cifar10_vgg_adv.pt")
+    CHECKPOINT_PATH = os.path.join(WEIGHTS_FOLDER, "cifar10_vgg_adv.pt")
     augmentation = True
     mean, std = (0, 0, 0), (1, 1, 1)
     if augmentation:
         mean, std = DATASET_CONFIGS["cifar10"]["mean"], DATASET_CONFIGS["cifar10"]["std"]
 
-    if os.path.exists(WEIGHTS_PATH):
-        model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=DEVICE))
+    if os.path.exists(CHECKPOINT_PATH):
+        model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=DEVICE)["model"])
         model.eval()
         testloader = get_dataloader(
             "cifar10",

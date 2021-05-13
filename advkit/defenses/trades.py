@@ -168,7 +168,7 @@ if __name__ == "__main__":
     model = VGG.from_default_config("vgg16")
     model.to(DEVICE)
 
-    WEIGHTS_PATH = os.path.join(WEIGHTS_FOLDER, "cifar10_vgg_trades.pt")
+    CHECKPOINT_PATH = os.path.join(WEIGHTS_FOLDER, "cifar10_vgg_trades.pt")
 
     loss_fn = nn.CrossEntropyLoss()
     augmentation = True
@@ -184,8 +184,8 @@ if __name__ == "__main__":
         loss_fn=loss_fn,
         device=DEVICE
     )
-    if os.path.exists(WEIGHTS_PATH):
-        model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=DEVICE))
+    if os.path.exists(CHECKPOINT_PATH):
+        model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=DEVICE))
         model.eval()
         testloader = get_dataloader(
             "cifar10",

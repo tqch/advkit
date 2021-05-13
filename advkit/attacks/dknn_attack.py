@@ -312,13 +312,13 @@ class DKNNAttack:
 
 if __name__ == "__main__":
     import os
-    from advkit.defenses.dknn import SimpleDkNN
+    from advkit.defenses.dknn import SimDkNN
     from advkit.convnets.vgg import VGG
     from torchvision.datasets import CIFAR10
 
     ROOT = os.path.expanduser("~/advkit")
     DATA_PATH = os.path.join(ROOT, "datasets")
-    WEIGHTS_PATH = os.path.join(ROOT, "model_weights/cifar10_vgg16.pt")
+    CHECKPOINT_PATH = os.path.join(ROOT, "model_weights/cifar10_vgg16.pt")
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     DOWNLOAD = not os.path.exists(os.path.join(DATA_PATH, "cifar-10-python.tar.gz"))
 
@@ -330,10 +330,10 @@ if __name__ == "__main__":
     )  # for memory's sake, only take 2000 as train set
 
     model = VGG.from_default_config("vgg16")
-    model.load_state_dict(torch.load(WEIGHTS_PATH, map_location=DEVICE))
+    model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=DEVICE)["model"])
     model.eval()
     model.to(DEVICE)
-    dknn = SimpleDkNN(
+    dknn = SimDkNN(
         model,
         train_data,
         train_targets,
