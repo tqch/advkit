@@ -47,7 +47,7 @@ DATASET_CONFIGS = {
 
 ROOT = os.path.expanduser("~/advkit")
 DATA_PATH = os.path.join(ROOT, "datasets")
-WEIGHTS_FOLDER = os.path.join(ROOT, "model_weights")
+CHECKPOINT_FOLDER = os.path.join(ROOT, "checkpoints")
 
 
 class PyTorchDataset(Dataset):

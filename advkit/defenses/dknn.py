@@ -252,11 +252,11 @@ class SimDkNN(DkNNBase):
 if __name__ == "__main__":
     import os
     from advkit.attacks.pgd import PGD
-    from advkit.utils.data import get_dataloader, DATA_PATH, WEIGHTS_FOLDER
+    from advkit.utils.data import get_dataloader, DATA_PATH, CHECKPOINT_FOLDER
     from advkit.utils.models import get_model
     from torchvision.datasets import CIFAR10
 
-    CHECKPOINT_PATH = os.path.join(WEIGHTS_FOLDER, "cifar10_vgg16.pt")
+    CHECKPOINT_PATH = os.path.join(CHECKPOINT_FOLDER, "cifar10_vgg16.pt")
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     DOWNLOAD = not os.path.exists(os.path.join(DATA_PATH, "cifar-10-python.tar.gz"))
 

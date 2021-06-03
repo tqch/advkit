@@ -49,6 +49,7 @@ def train(
     n_iter = len(trainloader)  # number of iterations per epoch
 
     if checkpoint_path is not None:
+        print(os.path.exists(checkpoint_path))
         if os.path.exists(checkpoint_path):
             checkpoint = torch.load(checkpoint_path)
             assert checkpoint.keys() == {"epoch", "val_acc", "model", "optimizer_state"}, \
@@ -67,11 +68,9 @@ def train(
     else:
         train_epochs = epochs
         # track the best epoch that has highest validation accuracy
-        best_epoch, best_val_acc = None, None
+        best_epoch, best_val_acc = -1, 0
 
     if valloader is not None:
-        best_epoch = -1
-        best_val_acc = 0
         assert num_eval_batches < n_iter, \
             "number of evaluation batches should be less than the number of iterations per epoch"
         if num_eval_batches == -1:
@@ -128,7 +127,7 @@ def train(
                             torch.save({
                                 "epoch": best_epoch,
                                 "val_acc": best_val_acc,
-                                "model": model.state_dict(),
+                                "model_weights": model.state_dict(),
                                 "optimizer_state": optimizer.state_dict()
                             }, checkpoint_path)
                     if isinstance(scheduler, ReduceLROnPlateau):

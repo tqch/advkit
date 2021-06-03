@@ -190,16 +190,16 @@ if __name__ == "__main__":
     ROOT = os.path.expanduser("~/advkit")
     DATA_PATH = os.path.join(ROOT, "datasets")
 
-    CHECKPOINT_PATH = os.path.join(ROOT, "model_weights/cifar10_densenet-bc-100-12.pt")
+    CHECKPOINT_PATH = os.path.join(ROOT, "checkpoints/cifar10_densenet-bc-100-12.pt")
     TRAIN = not os.path.exists(CHECKPOINT_PATH)
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    augmentation = False
+    augmentation = True
     testloader = get_dataloader(dataset="cifar10", root=DATA_PATH, augmentation=augmentation)
 
     if not TRAIN:
         model = DenseNet.from_default_config("densenet-bc-100-12")
-        model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=DEVICE))
+        model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=DEVICE)["model_weights"])
         model.to(DEVICE)
         evaluate(model, testloader, device=DEVICE)
     else:

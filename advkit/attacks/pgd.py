@@ -117,7 +117,7 @@ if __name__ == "__main__":
 
     ROOT = os.path.expanduser("~/advkit")
     DATA_PATH = os.path.join(ROOT, "datasets")
-    CHECKPOINT_PATH = os.path.join(ROOT, "model_weights/cifar10_vgg16.pt")
+    CHECKPOINT_PATH = os.path.join(ROOT, "checkpoints/cifar10_vgg16.pt")
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     testloader = get_dataloader(

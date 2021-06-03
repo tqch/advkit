@@ -150,25 +150,26 @@ def trades(
         if not os.path.exists(weights_folder):
             os.makedirs(weights_folder)
         model_name = model.__module__.split(".")[-1]
-        torch.save(
-            model.state_dict(),
-            os.path.join(
-                weights_folder,
-                "_".join([dataset, model_name, "trades"]) + ".pt"
-            ))
+        torch.save({
+            "model_weights": model.state_dict(),
+            "optimizer_state": optimizer.state_dict()
+        }, os.path.join(
+            weights_folder,
+            "_".join([dataset, model_name, "trades"]) + ".pt"
+        ))
     return model
 
 
 if __name__ == "__main__":
     import math
     from advkit.convnets.vgg import VGG
-    from advkit.utils.data import WEIGHTS_FOLDER, DATA_PATH, DATASET_CONFIGS
+    from advkit.utils.data import CHECKPOINT_FOLDER, DATA_PATH, DATASET_CONFIGS
     from torch.optim import SGD, lr_scheduler
 
     model = VGG.from_default_config("vgg16")
     model.to(DEVICE)
 
-    CHECKPOINT_PATH = os.path.join(WEIGHTS_FOLDER, "cifar10_vgg_trades.pt")
+    CHECKPOINT_PATH = os.path.join(CHECKPOINT_FOLDER, "cifar10_vgg_trades.pt")
 
     loss_fn = nn.CrossEntropyLoss()
     augmentation = True
@@ -185,7 +186,7 @@ if __name__ == "__main__":
         device=DEVICE
     )
     if os.path.exists(CHECKPOINT_PATH):
-        model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=DEVICE))
+        model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=DEVICE)["model_weights"])
         model.eval()
         testloader = get_dataloader(
             "cifar10",
